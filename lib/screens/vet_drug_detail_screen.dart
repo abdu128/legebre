@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
-import '../models/user.dart';
 import '../models/vet_drug.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
@@ -22,15 +21,15 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
   late VetDrug _drug;
   bool _isLoading = false;
   int _activePhoto = 0;
-  AppUser? _sellerProfile;
-  bool _contactLoading = false;
+  bool _loadingContact = true;
+  Map<String, dynamic>? _contact;
 
   @override
   void initState() {
     super.initState();
     _drug = widget.item;
     _fetchDetails();
-    _hydrateSellerContact();
+    _loadContact();
   }
 
   Future<void> _fetchDetails() async {
@@ -39,15 +38,8 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
       final api = context.read<AppState>().api;
       final fresh = await api.getVetDrug(widget.item.id);
       if (!mounted) return;
-      setState(() {
-        _drug = fresh;
-        if (_sellerProfile != null &&
-            fresh.sellerId != null &&
-            _sellerProfile!.id != fresh.sellerId) {
-          _sellerProfile = null;
-        }
-      });
-      _hydrateSellerContact();
+      setState(() => _drug = fresh);
+      _loadContact();
     } catch (_) {
       // ignore, we keep showing the initial payload
     } finally {
@@ -124,29 +116,20 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _hydrateSellerContact() async {
-    final sellerId = _drug.sellerId ?? widget.item.sellerId;
-    if (sellerId == null || sellerId <= 0) return;
-    final hasName = (_drug.sellerName ?? '').trim().isNotEmpty;
-    final hasPhone = (_drug.contactPhone ?? '').trim().isNotEmpty;
-    final hasWhatsapp = (_drug.contactWhatsapp ?? '').trim().isNotEmpty;
-    final needsLookup = !hasName || !hasPhone || !hasWhatsapp;
-    if (!needsLookup) return;
-    if (_sellerProfile != null) return;
-    if (_contactLoading) return;
-    setState(() => _contactLoading = true);
+  Future<void> _loadContact() async {
+    setState(() => _loadingContact = true);
     try {
-      final seller = await context.read<AppState>().api.getSellerProfile(
-        sellerId,
+      final contact = await context.read<AppState>().api.getVetDrugContact(
+        _drug.id,
       );
       if (!mounted) return;
       setState(() {
-        _sellerProfile = seller;
-        _contactLoading = false;
+        _contact = contact;
+        _loadingContact = false;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _contactLoading = false);
+      setState(() => _loadingContact = false);
     }
   }
 
@@ -166,17 +149,18 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     final priceText = _drug.price != null
         ? formatter.format(_drug.price)
         : 'Contact for price';
-    final rawSellerName = (_drug.sellerName ?? '').trim();
-    final fallbackName = _sellerProfile?.name.trim() ?? '';
-    final sellerName = rawSellerName.isNotEmpty
-        ? rawSellerName
-        : (fallbackName.isNotEmpty ? fallbackName : 'Licensed vendor');
-    final sellerPhone = (_drug.contactPhone ?? '').trim().isNotEmpty
-        ? (_drug.contactPhone ?? '').trim()
-        : (_sellerProfile?.displayPhone ?? '').trim();
-    final sellerWhatsapp = (_drug.contactWhatsapp ?? '').trim().isNotEmpty
-        ? (_drug.contactWhatsapp ?? '').trim()
-        : (_sellerProfile?.whatsapp ?? '').trim();
+    String extractContact(String? value, String key) {
+      final direct = value?.trim() ?? '';
+      if (direct.isNotEmpty) return direct;
+      return _contact?[key]?.toString().trim() ?? '';
+    }
+
+    final resolvedSellerName = extractContact(_drug.sellerName, 'sellerName');
+    final sellerName = resolvedSellerName.isNotEmpty
+        ? resolvedSellerName
+        : 'Licensed vendor';
+    final sellerPhone = extractContact(_drug.contactPhone, 'phone');
+    final sellerWhatsapp = extractContact(_drug.contactWhatsapp, 'whatsapp');
     final contactHint = sellerPhone.isNotEmpty
         ? sellerPhone
         : (sellerWhatsapp.isNotEmpty ? sellerWhatsapp : 'Contact coming soon');
@@ -386,7 +370,7 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                               ],
                             ),
                           ),
-                          if (_contactLoading)
+                          if (_loadingContact)
                             const Padding(
                               padding: EdgeInsets.only(left: 8),
                               child: SizedBox(
