@@ -282,6 +282,26 @@ class LegebreApi {
     throw ApiException('Unexpected contact response');
   }
 
+  Future<Map<String, dynamic>> getFeedContact(int id) async {
+    final response = await _client.get('/contact/feeds/$id');
+    if (response is Map<String, dynamic>) return response;
+    if (response is List && response.isNotEmpty) {
+      final first = response.first;
+      if (first is Map<String, dynamic>) return first;
+    }
+    throw ApiException('Unexpected contact response');
+  }
+
+  Future<Map<String, dynamic>> getVetDrugContact(int id) async {
+    final response = await _client.get('/contact/vet-drugs/$id');
+    if (response is Map<String, dynamic>) return response;
+    if (response is List && response.isNotEmpty) {
+      final first = response.first;
+      if (first is Map<String, dynamic>) return first;
+    }
+    throw ApiException('Unexpected contact response');
+  }
+
   Future<Map<String, dynamic>> logContactEvent({
     required String resourceType,
     required int resourceId,
