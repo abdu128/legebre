@@ -21,12 +21,15 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
   late FeedItem _feed;
   bool _isLoading = false;
   int _photoIndex = 0;
+  bool _loadingContact = true;
+  Map<String, dynamic>? _contact;
 
   @override
   void initState() {
     super.initState();
     _feed = widget.item;
     _fetchDetails();
+    _loadContact();
   }
 
   Future<void> _fetchDetails() async {
@@ -36,10 +39,28 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
       final fresh = await api.getFeed(widget.item.id);
       if (!mounted) return;
       setState(() => _feed = fresh);
+      _loadContact();
     } catch (_) {
       // Keep showing cached data if network fails.
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadContact() async {
+    setState(() => _loadingContact = true);
+    try {
+      final contact = await context.read<AppState>().api.getFeedContact(
+        _feed.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _contact = contact;
+        _loadingContact = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingContact = false);
     }
   }
 
@@ -131,6 +152,21 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     final priceText = _feed.price != null
         ? currency.format(_feed.price)
         : 'Contact seller';
+
+    String extractContact(String? value, String fallbackKey) {
+      final direct = value?.trim() ?? '';
+      if (direct.isNotEmpty) return direct;
+      final contactValue = _contact?[fallbackKey]?.toString().trim() ?? '';
+      return contactValue;
+    }
+
+    final sellerName = extractContact(_feed.sellerName, 'sellerName');
+    final sellerPhone = extractContact(_feed.sellerPhone, 'phone');
+    final sellerWhatsapp = extractContact(_feed.sellerWhatsapp, 'whatsapp');
+    final hasSellerInfo =
+        sellerName.isNotEmpty ||
+        sellerPhone.isNotEmpty ||
+        sellerWhatsapp.isNotEmpty;
 
     return Scaffold(
       body: CustomScrollView(
@@ -271,11 +307,12 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  if ((_feed.sellerName ?? '').isNotEmpty ||
-                      (_feed.sellerPhone ?? '').isNotEmpty ||
-                      (_feed.sellerWhatsapp ?? '').isNotEmpty)
+                  if (hasSellerInfo)
                     _SellerCard(
-                      feed: _feed,
+                      displayName: sellerName,
+                      phone: sellerPhone,
+                      whatsapp: sellerWhatsapp,
+                      isLoading: _loadingContact,
                       onCallTapped: (value) => _handleContact('CALL', value),
                       onWhatsappTapped: (value) =>
                           _handleContact('WHATSAPP', value),
@@ -410,25 +447,30 @@ class _InfoTile extends StatelessWidget {
 
 class _SellerCard extends StatelessWidget {
   const _SellerCard({
-    required this.feed,
+    required this.displayName,
+    required this.phone,
+    required this.whatsapp,
+    this.isLoading = false,
     this.onCallTapped,
     this.onWhatsappTapped,
   });
 
-  final FeedItem feed;
+  final String displayName;
+  final String phone;
+  final String whatsapp;
+  final bool isLoading;
   final Future<void> Function(String value)? onCallTapped;
   final Future<void> Function(String value)? onWhatsappTapped;
 
   @override
   Widget build(BuildContext context) {
-    final sellerName = (feed.sellerName ?? '').trim();
-    final sellerPhone = (feed.sellerPhone ?? '').trim();
-    final sellerWhatsapp = (feed.sellerWhatsapp ?? '').trim();
-    final displayName = sellerName.isNotEmpty ? sellerName : 'Supplier';
-    final avatarLetter = displayName[0].toUpperCase();
-    final contactHint = sellerPhone.isNotEmpty
-        ? sellerPhone
-        : (sellerWhatsapp.isNotEmpty ? sellerWhatsapp : 'Contact coming soon');
+    final name = displayName.trim().isNotEmpty
+        ? displayName.trim()
+        : 'Supplier';
+    final avatarLetter = name[0].toUpperCase();
+    final contactHint = phone.isNotEmpty
+        ? phone
+        : (whatsapp.isNotEmpty ? whatsapp : 'Contact coming soon');
 
     return Container(
       width: double.infinity,
@@ -473,7 +515,7 @@ class _SellerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      displayName,
+                      name,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -487,6 +529,15 @@ class _SellerCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (isLoading)
+                const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -494,9 +545,9 @@ class _SellerCard extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: sellerPhone.isEmpty || onCallTapped == null
+                  onPressed: phone.isEmpty || onCallTapped == null
                       ? null
-                      : () => onCallTapped!(sellerPhone),
+                      : () => onCallTapped!(phone),
                   icon: const Icon(Icons.call),
                   label: const Text('Call'),
                 ),
@@ -504,9 +555,9 @@ class _SellerCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: sellerWhatsapp.isEmpty || onWhatsappTapped == null
+                  onPressed: whatsapp.isEmpty || onWhatsappTapped == null
                       ? null
-                      : () => onWhatsappTapped!(sellerWhatsapp),
+                      : () => onWhatsappTapped!(whatsapp),
                   icon: const Icon(Icons.chat_rounded),
                   label: const Text('WhatsApp'),
                 ),
