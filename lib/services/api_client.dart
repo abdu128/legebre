@@ -15,7 +15,7 @@ class ApiClient {
   final http.Client _client;
   final AuthStorage _storage;
 
-  static const baseUrl = 'http://84.247.143.137';
+  static const baseUrl = 'http://84.247.143.135';
 
   Future<String?> get token async => _cachedToken ??= await _storage.readToken();
   String? _cachedToken;
