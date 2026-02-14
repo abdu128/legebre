@@ -6,12 +6,21 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 
 import 'package:legebre/main.dart';
+import 'package:legebre/state/app_state.dart';
 
 void main() {
   testWidgets('Legebere splash renders', (WidgetTester tester) async {
-    await tester.pumpWidget(const LegebereApp());
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AppState(),
+        child: const LegebereApp(),
+      ),
+    );
+
+    await tester.pump();
 
     expect(find.text('Legebere'), findsWidgets);
   });

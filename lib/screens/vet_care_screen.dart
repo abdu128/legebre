@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/vet_drug.dart';
 import '../state/app_state.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/vet_drug_card.dart';
 import 'add_vet_drug_screen.dart';
 import 'vet_drug_detail_screen.dart';
+import '../utils/seller_guard.dart';
 
 class VetCareScreen extends StatefulWidget {
   const VetCareScreen({super.key});
@@ -64,6 +67,8 @@ class _VetCareScreenState extends State<VetCareScreen> {
   }
 
   Future<void> _openAddListing() async {
+    final allowed = await SellerGuard.ensureSeller(context);
+    if (!allowed) return;
     final shouldRefresh = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const AddVetDrugScreen()));
@@ -85,7 +90,7 @@ class _VetCareScreenState extends State<VetCareScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddListing,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add vet listing'),
+        label: Text(context.tr('Add vet listing')),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -110,24 +115,19 @@ class _VetCareScreenState extends State<VetCareScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Vet care',
+                                context.tr('Vet Care'),
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Verified medical supplies & pharmacists',
-                                style: theme.textTheme.bodyMedium,
-                              ),
                             ],
                           ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: 'Refresh',
-                            onPressed: _refresh,
-                            icon: const Icon(Icons.refresh_rounded),
-                          ),
+                          // const Spacer(),
+                          // IconButton(
+                          //   tooltip: context.tr('Refresh'),
+                          //   onPressed: _refresh,
+                          //   icon: const Icon(Icons.refresh_rounded),
+                          // ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -138,7 +138,9 @@ class _VetCareScreenState extends State<VetCareScreen> {
                         onSubmitted: _applySearch,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search_rounded),
-                          hintText: 'Search vaccines, antibiotics, vitamins...',
+                          hintText: context.tr(
+                            'Search vaccines, antibiotics, vitamins...',
+                          ),
                           suffixIcon: _searchTerm.isNotEmpty
                               ? IconButton(
                                   onPressed: () {
@@ -147,11 +149,7 @@ class _VetCareScreenState extends State<VetCareScreen> {
                                   },
                                   icon: const Icon(Icons.close_rounded),
                                 )
-                              : IconButton(
-                                  onPressed: () =>
-                                      _applySearch(_searchController.text),
-                                  icon: const Icon(Icons.tune_rounded),
-                                ),
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -163,7 +161,7 @@ class _VetCareScreenState extends State<VetCareScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                label: Text(option.label),
+                                label: Text(context.tr(option.label)),
                                 selected: isSelected,
                                 onSelected: (_) {
                                   setState(() {
@@ -201,14 +199,14 @@ class _VetCareScreenState extends State<VetCareScreen> {
                             const Icon(Icons.cloud_off, size: 48),
                             const SizedBox(height: 12),
                             Text(
-                              'Unable to load vet supplies',
+                              context.tr('Unable to load vet supplies'),
                               style: theme.textTheme.titleMedium,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: _refresh,
-                              child: const Text('Retry'),
+                              child: Text(context.tr('Retry')),
                             ),
                           ],
                         ),
@@ -217,14 +215,15 @@ class _VetCareScreenState extends State<VetCareScreen> {
                   }
                   final drugs = snapshot.data ?? const <VetDrug>[];
                   if (drugs.isEmpty) {
-                    return const SliverToBoxAdapter(
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: EmptyState(
                           icon: Icons.medical_services_outlined,
-                          title: 'No vet supplies yet',
-                          description:
-                              'Licensed pharmacists will list their products here soon.',
+                          title: context.tr('No vet supplies yet'),
+                          description: context.tr(
+                            'Licensed pharmacists will list their products here soon.',
+                          ),
                         ),
                       ),
                     );
@@ -262,11 +261,14 @@ class _EmergencyCard extends StatelessWidget {
   const _EmergencyCard({required this.theme});
 
   final ThemeData theme;
+  static const _hotlineNumber = '+251 911 123 456';
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity,
+      constraints: const BoxConstraints(minWidth: double.infinity),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.accentBlue, AppColors.accentPurple],
@@ -283,33 +285,93 @@ class _EmergencyCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.monitor_heart, color: Colors.white, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            'Emergency hotline',
-            style: theme.textTheme.titleMedium?.copyWith(color: Colors.white),
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.verified_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('Verified medical supplies & pharmacists'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr(
+                        'Licensed pharmacists will list their products here soon.',
+                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            '+251 911 123 456',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+          // const SizedBox(height: 20),
+          // _InfoRow(
+          //   icon: Icons.inventory_2_rounded,
+          //   label: context.tr('Contact coming soon'),
+          // ),
+          const SizedBox(height: 10),
+          _InfoRow(
+            icon: Icons.medical_services_rounded,
+            label: context.tr('Verified sellers only'),
           ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: () {},
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.accentBlue,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            icon: const Icon(Icons.call_rounded),
-            label: const Text('Call now'),
-          ),
+          // const SizedBox(height: 10),
+          // Text(
+          //   '${context.tr('Emergency hotline')}: ${context.tr(_hotlineNumber)}',
+          //   style: theme.textTheme.bodyMedium?.copyWith(
+          //     color: Colors.white,
+          //     fontWeight: FontWeight.w600,
+          //   ),
+          // ),
         ],
       ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

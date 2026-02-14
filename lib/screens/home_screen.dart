@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
 import '../state/app_state.dart';
 import '../widgets/category_chip.dart';
@@ -14,16 +15,41 @@ class HomeScreen extends StatefulWidget {
   final ValueChanged<String> onMenuSelected;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   late Future<List<Animal>> _animalsFuture;
+  final TextEditingController _searchController = TextEditingController();
+
+  String _searchQuery = '';
+  String? _selectedCategory;
+  double? _minPrice;
+  double? _maxPrice;
+  bool _onlyVerifiedAnimals = false;
+  bool _onlyVerifiedSellers = false;
+
+  static const List<_AnimalCategory> _categoryOptions = [
+    _AnimalCategory(
+      labelKey: 'Cattle',
+      value: 'CATTLE',
+    ),
+    _AnimalCategory(labelKey: 'Goat', value: 'GOAT'),
+    _AnimalCategory(labelKey: 'Sheep', value: 'SHEEP'),
+    _AnimalCategory(labelKey: 'Camel', value: 'CAMEL'),
+    _AnimalCategory(labelKey: 'Chicken', value: 'CHICKEN'),
+  ];
 
   @override
   void initState() {
     super.initState();
     _animalsFuture = _fetchAnimals();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<List<Animal>> _fetchAnimals() async {
@@ -38,30 +64,100 @@ class _HomeScreenState extends State<HomeScreen> {
     await _animalsFuture;
   }
 
+  Future<void> refreshFromShell() => _refresh();
+
+  bool get _filtersActive =>
+      _selectedCategory != null ||
+      _minPrice != null ||
+      _maxPrice != null ||
+      _onlyVerifiedAnimals ||
+      _onlyVerifiedSellers;
+
+  List<Animal> _filterAnimals(List<Animal> animals) {
+    return animals.where((animal) {
+      if (_selectedCategory != null &&
+          animal.animalType.toUpperCase() != _selectedCategory) {
+        return false;
+      }
+      if (_minPrice != null && animal.price < _minPrice!) return false;
+      if (_maxPrice != null && animal.price > _maxPrice!) return false;
+      if (_onlyVerifiedAnimals && !animal.verified) return false;
+      if (_onlyVerifiedSellers && !animal.sellerVerified) return false;
+      if (_searchQuery.isNotEmpty && !_matchesSearch(animal)) return false;
+      return true;
+    }).toList();
+  }
+
+  bool _matchesSearch(Animal animal) {
+    if (_searchQuery.isEmpty) return true;
+    final textQuery = _searchQuery.toLowerCase();
+    final fields = <String?>[
+      animal.animalType,
+      animal.breed,
+      animal.location,
+      animal.description,
+      animal.sellerName,
+      animal.sellerPhone,
+      animal.sellerWhatsapp,
+      animal.age,
+      animal.status,
+    ];
+    for (final field in fields) {
+      if (field == null) continue;
+      if (field.toLowerCase().contains(textQuery)) return true;
+    }
+
+    final numericQuery = RegExp(r'[0-9]').hasMatch(_searchQuery)
+        ? _searchQuery.replaceAll(RegExp(r'[^0-9]'), '')
+        : null;
+    if (numericQuery != null && numericQuery.isNotEmpty) {
+      final priceValue = animal.price.round().toString();
+      if (priceValue.contains(numericQuery)) return true;
+    }
+    return false;
+  }
+
+  void _clearSearch() {
+    if (_searchQuery.isEmpty) return;
+    setState(() {
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
+
   Future<void> _showQuickMenu() async {
     final theme = Theme.of(context);
     final user = context.read<AppState>().user;
     const actions = [
+      // _QuickMenuAction(
+      //   value: 'vet',
+      //   icon: Icons.healing_rounded,
+      //   labelKey: 'Vet Care',
+      // ),
       _QuickMenuAction(
-        value: 'vet',
-        icon: Icons.healing_rounded,
-        label: 'Vet Care',
+        value: 'feed',
+        icon: Icons.grass,
+        labelKey: 'Feed Supply',
       ),
-      _QuickMenuAction(value: 'feed', icon: Icons.grass, label: 'Feed Supply'),
-      _QuickMenuAction(
-        value: 'learn',
-        icon: Icons.school_rounded,
-        label: 'E-Learning',
-      ),
+      // _QuickMenuAction(
+      //   value: 'learn',
+      //   icon: Icons.school_rounded,
+      //   labelKey: 'E-Learning',
+      // ),
       _QuickMenuAction(
         value: 'finance',
         icon: Icons.account_balance_wallet_rounded,
-        label: 'Finance Info',
+        labelKey: 'Finance Info',
+      ),
+      _QuickMenuAction(
+        value: 'language',
+        icon: Icons.language_rounded,
+        labelKey: 'Change language',
       ),
       _QuickMenuAction(
         value: 'logout',
         icon: Icons.logout_rounded,
-        label: 'Logout',
+        labelKey: 'Logout',
       ),
     ];
 
@@ -79,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Quick menu',
+      barrierLabel: context.tr('Quick menu'),
       barrierColor: Colors.black.withOpacity(.45),
       transitionDuration: const Duration(milliseconds: 320),
       pageBuilder: (_, __, ___) => const SizedBox.shrink(),
@@ -151,7 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ?.copyWith(fontWeight: FontWeight.w700),
                                     children: [
                                       TextSpan(
-                                        text: user?.name ?? 'Guest user',
+                                        text:
+                                            user?.name ??
+                                            context.tr('Guest user'),
                                       ),
                                       if (user?.verified ?? false)
                                         const WidgetSpan(
@@ -171,7 +269,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  displayPhone ?? 'Complete your profile',
+                                  displayPhone ??
+                                      context.tr('Complete your profile'),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: Colors.grey[600],
                                   ),
@@ -180,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           IconButton(
-                            tooltip: 'Close',
+                            tooltip: context.tr('Close'),
                             onPressed: () => Navigator.of(dialogContext).pop(),
                             icon: const Icon(Icons.close_rounded),
                           ),
@@ -200,7 +299,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             return ListTile(
                               onTap: () {
                                 Navigator.of(dialogContext).pop();
-                                widget.onMenuSelected(action.value);
+                                if (action.value == 'language') {
+                                  _openLanguagePicker();
+                                } else {
+                                  widget.onMenuSelected(action.value);
+                                }
                               },
                               contentPadding: EdgeInsets.zero,
                               leading: Container(
@@ -218,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               title: Text(
-                                action.label,
+                                context.tr(action.labelKey),
                                 style: theme.textTheme.titleMedium,
                               ),
                               trailing: const Icon(Icons.chevron_right_rounded),
@@ -228,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Powered by Legebere',
+                        context.tr('Powered by Legebere'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.grey[600],
                           letterSpacing: .4,
@@ -268,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Legebere',
+                          context.tr('Legebere'),
                           style: theme.textTheme.headlineMedium?.copyWith(
                             color: AppColors.primaryGreen,
                             fontWeight: FontWeight.w700,
@@ -276,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Find quality livestock',
+                          context.tr('Find quality livestock'),
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
@@ -299,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                       child: IconButton(
-                        tooltip: 'Open menu',
+                        tooltip: context.tr('Open menu'),
                         onPressed: _showQuickMenu,
                         icon: const Icon(Icons.menu_rounded),
                       ),
@@ -311,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverToBoxAdapter(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 12,
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
@@ -327,21 +430,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search_rounded, color: Colors.grey),
-                      const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Search livestock...',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
+                        child: TextField(
+                          controller: _searchController,
+                          cursorColor: AppColors.primaryGreen,
+                          textInputAction: TextInputAction.search,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value.trim();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            icon: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.grey,
+                            ),
+                            hintText: context.tr('Search livestock...'),
+                            border: InputBorder.none,
+                            isDense: true,
+                            suffixIcon: _searchQuery.isEmpty
+                                ? null
+                                : IconButton(
+                                    onPressed: _clearSearch,
+                                    tooltip: context.tr('Close'),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
                           ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(
-                          Icons.tune_rounded,
-                          color: AppColors.primaryGreen,
                         ),
                       ),
                     ],
@@ -354,12 +471,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: const [
-                      CategoryChip(label: 'Cattle', icon: Icons.pets),
-                      CategoryChip(label: 'Sheep', icon: Icons.cloud),
-                      CategoryChip(label: 'Goat', icon: Icons.grass),
-                      CategoryChip(label: 'Camel', icon: Icons.all_inclusive),
-                    ],
+                    children: _categoryOptions.map((category) {
+                      final label = context.tr(category.labelKey);
+                      return CategoryChip(
+                        label: label,
+                        selected: _selectedCategory == category.value,
+                        onSelected: (selected) {
+                          setState(() {
+                            _selectedCategory = selected
+                                ? category.value
+                                : null;
+                          });
+                        },
+                      );
+                    }).toList(),
                   ),
                 ),
               ),
@@ -388,13 +513,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Failed to load listings',
+                              context.tr('Failed to load listings'),
                               style: theme.textTheme.titleMedium,
                             ),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: _refresh,
-                              child: const Text('Retry'),
+                              child: Text(context.tr('Retry')),
                             ),
                           ],
                         ),
@@ -403,14 +528,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                   final items = snapshot.data ?? const <Animal>[];
                   if (items.isEmpty) {
-                    return const SliverToBoxAdapter(
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 40),
+                        padding: const EdgeInsets.symmetric(vertical: 40),
                         child: EmptyState(
                           icon: Icons.pets,
-                          title: 'No listings yet',
-                          description:
-                              'Animals added by the community will appear here.',
+                          title: context.tr('No listings yet'),
+                          description: context.tr(
+                            'Animals added by the community will appear here.',
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  final filteredItems = _filterAnimals(items);
+                  if (filteredItems.isEmpty) {
+                    return SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: EmptyState(
+                          icon: Icons.filter_alt_rounded,
+                          title: context.tr('No animals match your filters'),
+                          description: context.tr(
+                            'Try adjusting your filters or search.',
+                          ),
                         ),
                       ),
                     );
@@ -424,9 +565,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           childAspectRatio: .62,
                         ),
                     delegate: SliverChildBuilderDelegate((context, index) {
-                      final item = items[index];
+                      final item = filteredItems[index];
                       return LivestockCard(item: item);
-                    }, childCount: items.length),
+                    }, childCount: filteredItems.length),
                   );
                 },
               ),
@@ -437,16 +578,257 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Future<void> _openFiltersSheet() async {
+    FocusScope.of(context).unfocus();
+    final minController = TextEditingController(
+      text: _minPrice?.round().toString() ?? '',
+    );
+    final maxController = TextEditingController(
+      text: _maxPrice?.round().toString() ?? '',
+    );
+
+    double? parsePrice(String value) {
+      final sanitized = value.replaceAll(RegExp(r'[^0-9.]'), '').trim();
+      if (sanitized.isEmpty) return null;
+      return double.tryParse(sanitized);
+    }
+
+    final result = await showModalBottomSheet<_FilterResult>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        bool verifiedAnimals = _onlyVerifiedAnimals;
+        bool verifiedSellers = _onlyVerifiedSellers;
+        final theme = Theme.of(sheetContext);
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('Filters'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      context.tr('Price range'),
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: minController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: context.tr('Minimum price'),
+                              prefixText: 'Br ',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: maxController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: InputDecoration(
+                              labelText: context.tr('Maximum price'),
+                              prefixText: 'Br ',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      value: verifiedAnimals,
+                      onChanged: (value) =>
+                          setModalState(() => verifiedAnimals = value),
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(context.tr('Verified livestock only')),
+                    ),
+                    SwitchListTile.adaptive(
+                      value: verifiedSellers,
+                      onChanged: (value) =>
+                          setModalState(() => verifiedSellers = value),
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(context.tr('Verified sellers only')),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            setModalState(() {
+                              minController.clear();
+                              maxController.clear();
+                              verifiedAnimals = false;
+                              verifiedSellers = false;
+                            });
+                          },
+                          child: Text(context.tr('Reset filters')),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: Text(context.tr('Cancel')),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop(
+                              _FilterResult(
+                                minPrice: parsePrice(minController.text),
+                                maxPrice: parsePrice(maxController.text),
+                                onlyVerifiedAnimals: verifiedAnimals,
+                                onlyVerifiedSellers: verifiedSellers,
+                              ),
+                            );
+                          },
+                          child: Text(context.tr('Apply filters')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    minController.dispose();
+    maxController.dispose();
+
+    if (result == null) return;
+
+    setState(() {
+      _minPrice = result.minPrice;
+      _maxPrice = result.maxPrice;
+      _onlyVerifiedAnimals = result.onlyVerifiedAnimals;
+      _onlyVerifiedSellers = result.onlyVerifiedSellers;
+    });
+  }
+
+  Future<void> _openLanguagePicker() async {
+    final appState = context.read<AppState>();
+    final currentCode = appState.locale?.languageCode ?? 'en';
+
+    final selectedCode = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('Select language'),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...AppLocalizations.supportedLocales.map((locale) {
+                  final label = switch (locale.languageCode) {
+                    'am' => context.tr('Amharic'),
+                    'om' => context.tr('Afan Oromo'),
+                    'so' => context.tr('Somali'),
+                    _ => context.tr('English'),
+                  };
+                  return RadioListTile<String>(
+                    value: locale.languageCode,
+                    groupValue: currentCode,
+                    onChanged: (value) => Navigator.of(sheetContext).pop(value),
+                    title: Text(label),
+                  );
+                }),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(context.tr('Close')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedCode != null && selectedCode != currentCode) {
+      await appState.setLocale(Locale(selectedCode));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('Language updated'))));
+      }
+    }
+  }
+}
+
+class _FilterResult {
+  const _FilterResult({
+    this.minPrice,
+    this.maxPrice,
+    required this.onlyVerifiedAnimals,
+    required this.onlyVerifiedSellers,
+  });
+
+  final double? minPrice;
+  final double? maxPrice;
+  final bool onlyVerifiedAnimals;
+  final bool onlyVerifiedSellers;
+}
+
+class _AnimalCategory {
+  const _AnimalCategory({
+    required this.labelKey,
+    required this.value,
+  });
+
+  final String labelKey;
+  final String value;
 }
 
 class _QuickMenuAction {
   const _QuickMenuAction({
     required this.value,
     required this.icon,
-    required this.label,
+    required this.labelKey,
   });
 
   final String value;
   final IconData icon;
-  final String label;
+  final String labelKey;
 }

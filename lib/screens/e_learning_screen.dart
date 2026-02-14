@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/course.dart';
 import '../state/app_state.dart';
 import '../widgets/empty_state.dart';
@@ -55,7 +56,7 @@ class _ELearningScreenState extends State<ELearningScreen> {
     try {
       await context.read<AppState>().api.enrollInCourse(courseId);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Enrolled successfully')),
+        SnackBar(content: Text(context.tr('Enrolled successfully'))),
       );
       if (!mounted) return;
       await Navigator.of(context).push(
@@ -72,7 +73,7 @@ class _ELearningScreenState extends State<ELearningScreen> {
       }
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Unable to enroll right now')),
+        SnackBar(content: Text(context.tr('Unable to enroll right now'))),
       );
     } finally {
       if (mounted) setState(() => _enrollingId = null);
@@ -89,7 +90,9 @@ class _ELearningScreenState extends State<ELearningScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              width: double.infinity,
+              constraints: const BoxConstraints(minWidth: double.infinity),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: AppColors.accentPurple,
                 borderRadius: BorderRadius.circular(24),
@@ -98,16 +101,16 @@ class _ELearningScreenState extends State<ELearningScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'E-learning',
+                    context.tr('E-Learning'),
                     style: theme.textTheme.headlineSmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Grow your farming skills with quick lessons.',
-                    style: TextStyle(color: Colors.white70),
+                  Text(
+                    context.tr('Grow your farming skills with quick lessons.'),
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 ],
               ),
@@ -139,13 +142,13 @@ class _ELearningScreenState extends State<ELearningScreen> {
                             child: Column(
                               children: [
                                 Text(
-                                  'Unable to load courses',
+                                  context.tr('Unable to load courses'),
                                   style: theme.textTheme.titleMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 TextButton(
                                   onPressed: _refresh,
-                                  child: const Text('Retry'),
+                                  child: Text(context.tr('Retry')),
                                 ),
                               ],
                             ),
@@ -157,13 +160,14 @@ class _ELearningScreenState extends State<ELearningScreen> {
                     if (courses.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 80),
+                        children: [
+                          const SizedBox(height: 80),
                           EmptyState(
                             icon: Icons.school_rounded,
-                            title: 'No courses yet',
-                            description:
-                                'Trainers will publish livestock lessons here soon.',
+                            title: context.tr('No courses yet'),
+                            description: context.tr(
+                              'Trainers will publish livestock lessons here soon.',
+                            ),
                           ),
                         ],
                       );
@@ -223,17 +227,55 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          course.title,
-                                          style: theme.textTheme.titleMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w600,
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                course.title,
+                                                style: theme
+                                                    .textTheme
+                                                    .titleMedium
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                               ),
+                                            ),
+                                            if (course.difficulty != null)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                  left: 8,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.background,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  course.difficulty!,
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        letterSpacing: .2,
+                                                      ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
                                           course.instructorName ??
-                                              'Community trainer',
+                                              context.tr('Community trainer'),
                                           style: theme.textTheme.bodySmall,
                                         ),
                                       ],
@@ -244,25 +286,11 @@ class _ELearningScreenState extends State<ELearningScreen> {
                               const SizedBox(height: 12),
                               Text(
                                 course.description ??
-                                    'No description provided by instructor.',
+                                    context.tr(
+                                      'No description provided by instructor.',
+                                    ),
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  if (course.difficulty != null)
-                                    Chip(
-                                      label: Text(course.difficulty!),
-                                      backgroundColor: AppColors.background,
-                                    ),
-                                  if (course.status != null)
-                                    Chip(
-                                      label: Text(course.status!),
-                                      backgroundColor: AppColors.background,
-                                    ),
-                                ],
                               ),
                               if (isEnrolled)
                                 Padding(
@@ -285,8 +313,10 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                           const SizedBox(width: 4),
                                           Text(
                                             isCompleted
-                                                ? 'Course completed'
-                                                : 'Already taking this course',
+                                                ? context.tr('Course completed')
+                                                : context.tr(
+                                                    'Already taking this course',
+                                                  ),
                                             style: TextStyle(
                                               color: isCompleted
                                                   ? Colors.orange.shade700
@@ -300,8 +330,12 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                       const SizedBox(height: 4),
                                       Text(
                                         isCompleted
-                                            ? 'Great job! Revisit the lessons anytime.'
-                                            : 'Pick up where you left off.',
+                                            ? context.tr(
+                                                'Great job! Revisit the lessons anytime.',
+                                              )
+                                            : context.tr(
+                                                'Pick up where you left off.',
+                                              ),
                                         style: TextStyle(
                                           color: Colors.grey.shade600,
                                           fontSize: 12,
@@ -317,7 +351,7 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                'Progress: ${(progress * 100).toStringAsFixed(0)}%',
+                                                '${context.tr('Progress')}: ${(progress * 100).toStringAsFixed(0)}%',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.grey.shade600,
@@ -370,7 +404,7 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                         icon: const Icon(
                                           Icons.visibility_rounded,
                                         ),
-                                        label: const Text('See course'),
+                                        label: Text(context.tr('See course')),
                                       )
                                     : ElevatedButton(
                                         onPressed: _enrollingId == course.id
@@ -389,7 +423,7 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                                       color: Colors.white,
                                                     ),
                                               )
-                                            : const Text('Take course'),
+                                            : Text(context.tr('Take course')),
                                       ),
                               ),
                             ],

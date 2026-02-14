@@ -129,4 +129,34 @@ class FeedItem {
       updatedAt: parseDate(json['updatedAt']),
     );
   }
+
+  FeedItem copyWith({
+    String? status,
+    double? price,
+    String? location,
+    List<String>? photos,
+  }) {
+    return FeedItem(
+      id: id,
+      name: name,
+      status: status ?? this.status,
+      price: price ?? this.price,
+      feedType: feedType,
+      animalType: animalType,
+      brand: brand,
+      weight: weight,
+      unit: unit,
+      expiryDate: expiryDate,
+      description: description,
+      location: location ?? this.location,
+      photos: photos ?? this.photos,
+      imageUrl: imageUrl,
+      sellerName: sellerName,
+      sellerPhone: sellerPhone,
+      sellerWhatsapp: sellerWhatsapp,
+      sellerId: sellerId,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 }

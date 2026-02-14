@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
 import '../models/feed_item.dart';
+import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/feed_card.dart';
 import 'add_feed_screen.dart';
 import 'feed_detail_screen.dart';
+import '../utils/seller_guard.dart';
 
 class FeedSupplyScreen extends StatefulWidget {
   const FeedSupplyScreen({super.key});
@@ -64,6 +66,8 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
   }
 
   Future<void> _openAddListing() async {
+    final allowed = await SellerGuard.ensureSeller(context);
+    if (!allowed) return;
     final shouldRefresh = await Navigator.of(
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const AddFeedScreen()));
@@ -85,7 +89,7 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddListing,
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Add feed listing'),
+        label: Text(context.tr('Add feed listing')),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -110,23 +114,12 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Feed supply',
+                                context.tr('Feed Supply'),
                                 style: theme.textTheme.headlineMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Bulk nutrition and supplements from trusted mills',
-                                style: theme.textTheme.bodyMedium,
-                              ),
                             ],
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: 'Refresh',
-                            onPressed: _refresh,
-                            icon: const Icon(Icons.refresh_rounded),
                           ),
                         ],
                       ),
@@ -138,7 +131,9 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                         onSubmitted: _applySearch,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search_rounded),
-                          hintText: 'Search feed, brand, animal type...',
+                          hintText: context.tr(
+                            'Search feed, brand, animal type...',
+                          ),
                           suffixIcon: _searchTerm.isNotEmpty
                               ? IconButton(
                                   onPressed: () {
@@ -147,11 +142,7 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                                   },
                                   icon: const Icon(Icons.close_rounded),
                                 )
-                              : IconButton(
-                                  onPressed: () =>
-                                      _applySearch(_searchController.text),
-                                  icon: const Icon(Icons.tune_rounded),
-                                ),
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -163,7 +154,7 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ChoiceChip(
-                                label: Text(option.label),
+                                label: Text(context.tr(option.label)),
                                 selected: isSelected,
                                 onSelected: (_) {
                                   setState(() {
@@ -201,14 +192,14 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                             const Icon(Icons.cloud_off, size: 48),
                             const SizedBox(height: 12),
                             Text(
-                              'Could not load feed items',
+                              context.tr('Could not load feed items'),
                               style: theme.textTheme.titleMedium,
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
                             TextButton(
                               onPressed: _refresh,
-                              child: const Text('Retry'),
+                              child: Text(context.tr('Retry')),
                             ),
                           ],
                         ),
@@ -217,14 +208,15 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                   }
                   final items = snapshot.data ?? const <FeedItem>[];
                   if (items.isEmpty) {
-                    return const SliverToBoxAdapter(
+                    return SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: EmptyState(
                           icon: Icons.storefront,
-                          title: 'No feed listings yet',
-                          description:
-                              'Suppliers will publish feeds and supplements here soon.',
+                          title: context.tr('No feed listings yet'),
+                          description: context.tr(
+                            'Suppliers will publish feeds and supplements here soon.',
+                          ),
                         ),
                       ),
                     );
@@ -237,7 +229,7 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                             maxCrossAxisExtent: 320,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
-                            childAspectRatio: .72,
+                            childAspectRatio: .64,
                           ),
                       delegate: SliverChildBuilderDelegate((context, index) {
                         final item = items[index];
@@ -265,55 +257,73 @@ class _HighlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primaryGreen, AppColors.accentBlue],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: .25),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bulk order support',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Need more than 5 tons? Chat with our sourcing team to lock fair rates.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: .9),
-                  ),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 360;
+
+        final textBlock = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.tr('Bulk order support'),
+              style: theme.textTheme.titleLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton(
-            onPressed: () {},
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primaryGreen,
+            const SizedBox(height: 8),
+            Text(
+              context.tr('Chat with our sourcing team to lock fair rates.'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: .9),
+              ),
             ),
-            child: const Text('Contact'),
+          ],
+        );
+
+        final contactButton = FilledButton(
+          onPressed: () {},
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: AppColors.primaryGreen,
+            minimumSize: const Size(120, 44),
           ),
-        ],
-      ),
+          child: Text(context.tr('Contact')),
+        );
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primaryGreen, AppColors.accentBlue],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: .25),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: isCompact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    textBlock,
+                    const SizedBox(height: 16),
+                    contactButton,
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: textBlock),
+                    const SizedBox(width: 12),
+                    contactButton,
+                  ],
+                ),
+        );
+      },
     );
   }
 }

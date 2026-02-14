@@ -3,8 +3,10 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/animal.dart';
+import '../models/app_notification.dart';
 import '../models/course.dart';
 import '../models/feed_item.dart';
+import '../models/financial_info.dart';
 import '../models/user.dart';
 import '../models/vet_drug.dart';
 import 'api_client.dart';
@@ -18,6 +20,11 @@ class LegebreApi {
 
   final ApiClient _client;
   final AuthStorage _storage;
+
+  Future<bool> hasStoredToken() async {
+    final token = await _client.token;
+    return token != null && token.isNotEmpty;
+  }
 
   Map<String, dynamic> _extractObject(
     dynamic response, {
@@ -181,6 +188,30 @@ class LegebreApi {
     return (user, token);
   }
 
+  Future<void> requestPasswordReset({required String email}) async {
+    final trimmed = email.trim();
+    if (trimmed.isEmpty) {
+      throw ApiException('Provide your email to reset password');
+    }
+    await _client.post(
+      '/auth/forgot-password',
+      body: {'email': trimmed},
+      authorized: false,
+    );
+  }
+
+  Future<void> resetPassword({
+    required String otp,
+    required String password,
+  }) async {
+    final payload = {'otp': otp.trim(), 'password': password};
+    await _client.post(
+      '/auth/reset-password',
+      body: payload,
+      authorized: false,
+    );
+  }
+
   Future<AppUser> getProfile() async {
     Future<AppUser> fetch(String path) async {
       final response = await _client.get(path, authorized: true);
@@ -300,6 +331,31 @@ class LegebreApi {
       if (first is Map<String, dynamic>) return first;
     }
     throw ApiException('Unexpected contact response');
+  }
+
+  Future<List<FinancialInfo>> getFinancialInfos() async {
+    final response = await _client.get('/financial-info');
+    final items = _extractList(
+      response,
+      preferredKeys: const ['data', 'items', 'financialInfo'],
+    );
+    if (items.isEmpty && response is Map<String, dynamic>) {
+      final maybeSingle = _extractObject(
+        response,
+        preferredKeys: const ['data', 'financialInfo'],
+      );
+      if (maybeSingle.isNotEmpty) return [FinancialInfo.fromJson(maybeSingle)];
+    }
+    return items.map(FinancialInfo.fromJson).toList();
+  }
+
+  Future<FinancialInfo> getFinancialInfo(int id) async {
+    final response = await _client.get('/financial-info/$id');
+    final data = _extractObject(
+      response,
+      preferredKeys: const ['data', 'financialInfo'],
+    );
+    return FinancialInfo.fromJson(data.isEmpty ? response : data);
   }
 
   Future<Map<String, dynamic>> logContactEvent({
@@ -994,6 +1050,90 @@ class LegebreApi {
       response,
       preferredKeys: const ['certificate', 'data'],
     );
+  }
+
+  Future<void> registerDeviceToken(String deviceToken) async {
+    if (deviceToken.isEmpty) return;
+    await _client.post(
+      '/users/me/device-token',
+      body: {'deviceToken': deviceToken},
+      authorized: true,
+    );
+  }
+
+  Future<void> clearDeviceToken() async {
+    await _client.post(
+      '/users/me/device-token',
+      body: const {'clear': true},
+      authorized: true,
+    );
+  }
+
+  Future<List<AppNotification>> getNotifications() async {
+    final response = await _client.get('/notifications', authorized: true);
+    final extracted = _extractList(
+      response,
+      preferredKeys: const ['notifications', 'data', 'results'],
+    );
+    final notifications = extracted.isNotEmpty
+        ? List<Map<String, dynamic>>.from(extracted)
+        : response is List
+        ? response.whereType<Map<String, dynamic>>().toList()
+        : <Map<String, dynamic>>[];
+
+    if (notifications.isEmpty && response is Map<String, dynamic>) {
+      final single = _extractObject(
+        response,
+        preferredKeys: const ['notification', 'data'],
+      );
+      if (single.isNotEmpty) notifications.add(single);
+    }
+
+    return notifications.map(AppNotification.fromJson).toList();
+  }
+
+  Future<AppNotification> markNotificationRead(int id) async {
+    final response = await _client.patch(
+      '/notifications/$id/read',
+      authorized: true,
+    );
+    return _notificationFromResponse(response, fallbackId: id, isRead: true);
+  }
+
+  Future<void> deleteNotification(int id) async {
+    await _client.delete('/notifications/$id', authorized: true);
+  }
+
+  AppNotification _notificationFromResponse(
+    dynamic response, {
+    required int fallbackId,
+    bool? isRead,
+  }) {
+    Map<String, dynamic> data = {};
+    if (response is Map<String, dynamic>) {
+      data = _extractObject(
+        response,
+        preferredKeys: const ['notification', 'data'],
+      );
+      if (data.isEmpty) data = response;
+    }
+
+    if (data.isEmpty) {
+      data = {
+        'id': fallbackId,
+        'title': '',
+        'body': '',
+        if (isRead != null) 'is_read': isRead,
+      };
+    } else {
+      data = {...data};
+      data['id'] = data['id'] ?? fallbackId;
+      if (isRead != null) {
+        data['is_read'] = isRead;
+      }
+    }
+
+    return AppNotification.fromJson(data);
   }
 
   Future<void> logout() async {

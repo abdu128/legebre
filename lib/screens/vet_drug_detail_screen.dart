@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/vet_drug.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
@@ -23,11 +24,14 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
   int _activePhoto = 0;
   bool _loadingContact = true;
   Map<String, dynamic>? _contact;
+  bool _statusBusy = false;
+  bool _isSold = false;
 
   @override
   void initState() {
     super.initState();
     _drug = widget.item;
+    _isSold = _statusIsSold(_drug.status);
     _fetchDetails();
     _loadContact();
   }
@@ -38,7 +42,10 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
       final api = context.read<AppState>().api;
       final fresh = await api.getVetDrug(widget.item.id);
       if (!mounted) return;
-      setState(() => _drug = fresh);
+      setState(() {
+        _drug = fresh;
+        _isSold = _statusIsSold(fresh.status);
+      });
       _loadContact();
     } catch (_) {
       // ignore, we keep showing the initial payload
@@ -55,9 +62,10 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('No $missingLabel contact provided')),
-      );
+      final missingMessage = missingLabel.toLowerCase() == 'phone'
+          ? context.tr('No phone contact provided')
+          : context.tr('No WhatsApp contact provided');
+      messenger.showSnackBar(SnackBar(content: Text(missingMessage)));
       return;
     }
 
@@ -69,9 +77,10 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
         : await _launchWhatsapp(trimmed);
 
     if (!launched) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Unable to open $missingLabel app')),
-      );
+      final failureMessage = channel == 'CALL'
+          ? context.tr('Unable to open dialer')
+          : context.tr('Unable to open WhatsApp');
+      messenger.showSnackBar(SnackBar(content: Text(failureMessage)));
     }
   }
 
@@ -89,9 +98,11 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
         if (!mounted) return false;
         final messenger = ScaffoldMessenger.of(context);
         messenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Session expired. Please log in again to contact pharmacists.',
+              context.tr(
+                'Session expired. Please log in again to contact pharmacists.',
+              ),
             ),
           ),
         );
@@ -114,6 +125,46 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     if (digits.isEmpty) return false;
     final uri = Uri.parse('https://wa.me/$digits');
     return launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _changeStatus(bool sold) async {
+    if (_statusBusy) return;
+    setState(() {
+      _statusBusy = true;
+      _isSold = sold;
+      _drug = _drug.copyWith(status: sold ? 'SOLD' : 'AVAILABLE');
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    final api = context.read<AppState>().api;
+    try {
+      await api.changeVetDrugStatus(_drug.id, sold ? 'SOLD' : 'AVAILABLE');
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            sold
+                ? context.tr('Listing marked as sold')
+                : context.tr('Listing available again'),
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      setState(() {
+        _isSold = !sold;
+        _drug = _drug.copyWith(status: _isSold ? 'SOLD' : 'AVAILABLE');
+      });
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      setState(() {
+        _isSold = !sold;
+        _drug = _drug.copyWith(status: _isSold ? 'SOLD' : 'AVAILABLE');
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.tr('Failed to update status'))),
+      );
+    } finally {
+      if (mounted) setState(() => _statusBusy = false);
+    }
   }
 
   Future<void> _loadContact() async {
@@ -139,16 +190,24 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     return const [];
   }
 
+  bool _statusIsSold(String? status) {
+    if (status == null) return false;
+    return status.trim().toUpperCase() == 'SOLD';
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(
-      locale: 'en_ET',
+      locale: context.l10n.localeTag,
       decimalDigits: 0,
       symbol: 'ETB ',
     );
     final priceText = _drug.price != null
         ? formatter.format(_drug.price)
-        : 'Contact for price';
+        : context.tr('Contact for price');
+    final user = context.watch<AppState>().user;
+    final isOwner = user?.id == _drug.sellerId;
+    final statusLabel = _isSold ? 'SOLD' : (_drug.status ?? 'AVAILABLE');
     String extractContact(String? value, String key) {
       final direct = value?.trim() ?? '';
       if (direct.isNotEmpty) return direct;
@@ -158,12 +217,14 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     final resolvedSellerName = extractContact(_drug.sellerName, 'sellerName');
     final sellerName = resolvedSellerName.isNotEmpty
         ? resolvedSellerName
-        : 'Licensed vendor';
+        : context.tr('Supplier');
     final sellerPhone = extractContact(_drug.contactPhone, 'phone');
     final sellerWhatsapp = extractContact(_drug.contactWhatsapp, 'whatsapp');
-    final contactHint = sellerPhone.isNotEmpty
-        ? sellerPhone
-        : (sellerWhatsapp.isNotEmpty ? sellerWhatsapp : 'Contact coming soon');
+    final hasDirectContact =
+        sellerPhone.isNotEmpty || sellerWhatsapp.isNotEmpty;
+    final contactHint = hasDirectContact
+        ? context.tr('Contact seller')
+        : context.tr('Contact coming soon');
     final avatarLetter = sellerName.isNotEmpty
         ? sellerName[0].toUpperCase()
         : 'P';
@@ -261,7 +322,7 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                           ],
                         ),
                       ),
-                      _StatusChip(label: _drug.status ?? 'AVAILABLE'),
+                      _StatusChip(label: statusLabel),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -301,19 +362,19 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                       children: [
                         if ((_drug.usage ?? '').isNotEmpty)
                           _DetailRow(
-                            icon: Icons.notes_rounded,
+                            icon: Icons.medical_information,
                             label: 'Usage instructions',
                             value: _drug.usage!,
                           ),
                         if ((_drug.dosage ?? '').isNotEmpty)
                           _DetailRow(
-                            icon: Icons.scale_outlined,
+                            icon: Icons.monitor_weight,
                             label: 'Dosage guidance',
                             value: _drug.dosage!,
                           ),
                         if ((_drug.storage ?? '').isNotEmpty)
                           _DetailRow(
-                            icon: Icons.thermostat,
+                            icon: Icons.ac_unit,
                             label: 'Storage',
                             value: _drug.storage!,
                           ),
@@ -326,7 +387,7 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                         title: 'Delivery',
                         children: [
                           _DetailRow(
-                            icon: Icons.delivery_dining,
+                            icon: Icons.local_shipping,
                             label: 'Regions served',
                             value: _drug.deliveryRegions!,
                           ),
@@ -396,7 +457,7 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                                       value: sellerPhone,
                                     ),
                               icon: const Icon(Icons.call),
-                              label: const Text('Call'),
+                              label: Text(context.tr('Call')),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -410,13 +471,37 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
                                       value: sellerWhatsapp,
                                     ),
                               icon: const Icon(Icons.chat_rounded),
-                              label: const Text('WhatsApp'),
+                              label: Text(context.tr('WhatsApp')),
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
+                  if (isOwner)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 20),
+                      child: _DetailCard(
+                        title: context.tr('Seller actions'),
+                        children: [
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            value: _isSold,
+                            onChanged: _statusBusy
+                                ? null
+                                : (value) => _changeStatus(value),
+                            title: Text(context.tr('Mark as sold')),
+                            subtitle: Text(
+                              context.tr(
+                                'Buyers will see the listing as unavailable.',
+                              ),
+                            ),
+                          ),
+                          if (_statusBusy)
+                            const LinearProgressIndicator(minHeight: 2),
+                        ],
+                      ),
+                    ),
                   if (_isLoading)
                     const Padding(
                       padding: EdgeInsets.only(top: 16),
@@ -436,11 +521,7 @@ class _VetDrugDetailScreenState extends State<VetDrugDetailScreen> {
     return Container(
       color: AppColors.background,
       child: const Center(
-        child: Icon(
-          Icons.local_pharmacy_outlined,
-          size: 48,
-          color: Colors.grey,
-        ),
+        child: Icon(Icons.vaccines, size: 48, color: Colors.grey),
       ),
     );
   }

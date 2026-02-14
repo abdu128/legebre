@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../app_theme.dart';
 import '../models/animal.dart';
 import '../screens/listing_detail_screen.dart';
+import '../l10n/app_localizations.dart';
 import 'info_tag.dart';
 
 class LivestockCard extends StatelessWidget {
@@ -14,7 +15,7 @@ class LivestockCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.compactCurrency(
-      locale: 'en_ET',
+      locale: context.l10n.localeTag,
       decimalDigits: 0,
       symbol: 'ETB ',
     );
@@ -69,9 +70,10 @@ class LivestockCard extends StatelessWidget {
                             color: Colors.grey[200],
                             child: Center(
                               child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
+                                          loadingProgress.expectedTotalBytes!
                                     : null,
                                 color: AppColors.primaryGreen,
                               ),
@@ -104,7 +106,10 @@ class LivestockCard extends StatelessWidget {
             ),
             Flexible(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -115,7 +120,7 @@ class LivestockCard extends StatelessWidget {
                       formatter.format(item.price),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 18,
                         color: AppColors.primaryGreen,
                       ),
                     ),
@@ -125,7 +130,7 @@ class LivestockCard extends StatelessWidget {
                           : item.animalType,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        fontSize: 15,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -135,18 +140,18 @@ class LivestockCard extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.location_pin,
-                          size: 10,
+                          size: 14,
                           color: Colors.grey,
                         ),
                         const SizedBox(width: 2),
                         Expanded(
                           child: Text(
-                            item.location ?? 'Location not set',
+                            item.location ?? context.tr('Location not set'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.grey,
-                              fontSize: 10,
+                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -154,11 +159,13 @@ class LivestockCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Wrap(
-                      spacing: 3,
-                      runSpacing: 2,
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         if (item.weight != null)
-                          InfoTag(label: '${item.weight!.toStringAsFixed(0)} kg'),
+                          InfoTag(
+                            label: '${item.weight!.toStringAsFixed(0)} kg',
+                          ),
                         if (item.breed != null && item.breed!.isNotEmpty)
                           InfoTag(label: item.breed!),
                       ],
@@ -173,4 +180,3 @@ class LivestockCard extends StatelessWidget {
     );
   }
 }
-

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import 'add_listing_screen.dart';
 import 'e_learning_screen.dart';
 import 'favorites_screen.dart';
 import 'feed_supply_screen.dart';
 import 'home_screen.dart';
+import 'financial_info_screen.dart';
 import 'vet_care_screen.dart';
+import '../utils/seller_guard.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -18,18 +21,28 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
+  final _homeKey = GlobalKey<HomeScreenState>();
   late final HomeScreen _homeScreen;
 
   @override
   void initState() {
     super.initState();
-    _homeScreen = HomeScreen(onMenuSelected: _handleMenuSelection);
+    _homeScreen = HomeScreen(
+      key: _homeKey,
+      onMenuSelected: _handleMenuSelection,
+    );
   }
 
-  void _handleFabPressed() {
-    setState(() {
-      _currentIndex = 2;
-    });
+  Future<void> _handleFabPressed() async {
+    final allowed = await SellerGuard.ensureSeller(context);
+    if (!allowed || !mounted) return;
+    final shouldRefresh = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddListingScreen()));
+    if (shouldRefresh == true && mounted) {
+      final state = _homeKey.currentState;
+      if (state != null) await state.refreshFromShell();
+    }
   }
 
   void _handleMenuSelection(String value) {
@@ -38,41 +51,13 @@ class _HomeShellState extends State<HomeShell> {
         context,
       ).push(MaterialPageRoute(builder: (_) => const FeedSupplyScreen()));
     } else if (value == 'vet') {
-      setState(() => _currentIndex = 3);
+      setState(() => _currentIndex = 2);
     } else if (value == 'learn') {
-      setState(() => _currentIndex = 4);
+      setState(() => _currentIndex = 3);
     } else if (value == 'finance') {
-      showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (_) => Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Finance information',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Get micro-loans and savings tips for livestock farming. '
-                'Visit your nearby cooperative for more support.',
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Got it'),
-              ),
-            ],
-          ),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const FinancialInfoScreen()));
     } else if (value == 'logout') {
       context.read<AppState>().logout();
     }
@@ -83,7 +68,6 @@ class _HomeShellState extends State<HomeShell> {
     final pages = [
       _homeScreen,
       const FavoritesScreen(),
-      // const AddListingScreen(),
       const VetCareScreen(),
       const ELearningScreen(),
     ];
@@ -100,32 +84,28 @@ class _HomeShellState extends State<HomeShell> {
           ? FloatingActionButton.extended(
               onPressed: _handleFabPressed,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Sell livestock'),
+              label: Text(context.tr('Sell livestock')),
             )
           : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Home',
+            icon: const Icon(Icons.home_rounded),
+            label: context.tr('Home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_rounded),
-            label: 'Favorites',
-          ),
-          // BottomNavigationBarItem(
-          //   icon: Icon(Icons.add_box_rounded),
-          //   label: 'Add',
-          // ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.medical_services_rounded),
-            label: 'Vet',
+            icon: const Icon(Icons.favorite_rounded),
+            label: context.tr('Favorites'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_rounded),
-            label: 'Learn',
+            icon: const Icon(Icons.medical_services_rounded),
+            label: context.tr('Vet'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.menu_book_rounded),
+            label: context.tr('Learn'),
           ),
         ],
       ),

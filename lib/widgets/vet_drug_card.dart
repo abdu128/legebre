@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../app_theme.dart';
 import '../models/vet_drug.dart';
+import '../l10n/app_localizations.dart';
 
 class VetDrugCard extends StatelessWidget {
   const VetDrugCard({super.key, required this.item, this.onTap});
@@ -13,13 +14,32 @@ class VetDrugCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.compactCurrency(
-      locale: 'en_ET',
+      locale: context.l10n.localeTag,
       decimalDigits: 0,
       symbol: 'ETB ',
     );
     final priceText = item.price != null
         ? formatter.format(item.price)
-        : 'Contact for price';
+        : context.tr('Contact for price');
+    final status = (item.status ?? '').trim();
+    final hasStatus = status.isNotEmpty;
+    final friendlyStatus = hasStatus
+        ? status
+              .replaceAll('_', ' ')
+              .toLowerCase()
+              .split(' ')
+              .map(
+                (word) => word.isEmpty
+                    ? word
+                    : '${word[0].toUpperCase()}${word.substring(1)}',
+              )
+              .join(' ')
+        : '';
+    final delivery = (item.deliveryRegions ?? '').trim();
+    final summary = (item.description ?? '').trim();
+    final category = (item.category ?? '').trim();
+    final manufacturer = (item.manufacturer ?? '').trim();
+    final unit = (item.unit ?? '').trim();
 
     return GestureDetector(
       onTap: onTap,
@@ -95,6 +115,12 @@ class VetDrugCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (hasStatus)
+                      Positioned(
+                        right: 12,
+                        top: 12,
+                        child: _StatusPill(label: friendlyStatus),
+                      ),
                   ],
                 ),
               ),
@@ -108,7 +134,7 @@ class VetDrugCard extends StatelessWidget {
                     item.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 16,
+                      fontSize: 18,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -118,25 +144,58 @@ class VetDrugCard extends StatelessWidget {
                     priceText,
                     style: const TextStyle(
                       color: AppColors.primaryGreen,
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (summary.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
                   const SizedBox(height: 8),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
-                      _StatusPill(label: item.status ?? 'Available'),
-                      const Spacer(),
-                      if (item.unit != null && item.unit!.isNotEmpty)
-                        Text(
-                          item.unit!,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      if (category.isNotEmpty) _MetaChip(label: category),
+                      if (manufacturer.isNotEmpty)
+                        _MetaChip(label: manufacturer),
+                      if (unit.isNotEmpty) _MetaChip(label: unit),
+                      if (item.stock != null)
+                        _MetaChip(
+                          label: '${context.tr('Stock')}: ${item.stock}',
                         ),
                     ],
                   ),
+                  if (delivery.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.local_shipping,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            delivery,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -151,12 +210,7 @@ class VetDrugCard extends StatelessWidget {
       color: AppColors.background,
       child: Center(
         child:
-            child ??
-            const Icon(
-              Icons.local_hospital_outlined,
-              color: Colors.grey,
-              size: 36,
-            ),
+            child ?? const Icon(Icons.vaccines, color: Colors.grey, size: 36),
       ),
     );
   }
@@ -184,9 +238,30 @@ class _StatusPill extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
     );
   }

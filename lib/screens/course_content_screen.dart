@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
+import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import 'quiz_screen.dart';
 
@@ -161,7 +162,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                 children: [
                   const Icon(Icons.cloud_off, size: 48),
                   const SizedBox(height: 12),
-                  const Text('Unable to load course content'),
+                  Text(context.tr('Unable to load course content')),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
@@ -169,7 +170,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                         _loadFuture = _loadContent();
                       });
                     },
-                    child: const Text('Retry'),
+                    child: Text(context.tr('Retry')),
                   ),
                 ],
               ),
@@ -181,45 +182,73 @@ class _CourseContentScreenState extends State<CourseContentScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Lessons', style: theme.textTheme.titleLarge),
+                Text(context.tr('Lessons'), style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 if (_textLessons.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No lessons yet'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(context.tr('No lessons yet')),
                   )
                 else
-                  ..._textLessons.map((lesson) {
+                  ..._textLessons.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final lesson = entry.value;
+                    final title =
+                        (lesson['title'] ??
+                                lesson['name'] ??
+                                context.tr('Lesson'))
+                            .toString();
+                    final description =
+                        (lesson['description'] ??
+                                lesson['content'] ??
+                                lesson['text'])
+                            ?.toString();
+                    final duration =
+                        (lesson['readTime'] ??
+                                lesson['duration'] ??
+                                lesson['estimatedTime'])
+                            ?.toString();
+
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        (lesson['title'] ?? lesson['name'] ?? 'Lesson')
-                            .toString(),
-                        style: theme.textTheme.titleMedium,
+                      leading: CircleAvatar(
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        child: Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      subtitle: lesson['description'] != null
+                      title: Text(title, style: theme.textTheme.titleMedium),
+                      subtitle: description != null && description.isNotEmpty
                           ? Text(
-                              lesson['description'].toString(),
+                              description,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             )
                           : null,
+                      trailing: duration != null && duration.isNotEmpty
+                          ? Text(duration, style: theme.textTheme.bodySmall)
+                          : null,
                     );
                   }),
                 const SizedBox(height: 16),
-                Text('Videos', style: theme.textTheme.titleLarge),
+                Text(context.tr('Videos'), style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 if (_videos.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No videos yet'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(context.tr('No videos yet')),
                   )
                 else
                   ..._videos.asMap().entries.map((entry) {
                     final index = entry.key;
                     final video = entry.value;
-                    final title = (video['title'] ?? video['name'] ?? 'Video')
-                        .toString();
+                    final title =
+                        (video['title'] ?? video['name'] ?? context.tr('Video'))
+                            .toString();
                     final duration = video['duration']?.toString();
                     var url =
                         (video['video_url'] ??
@@ -341,7 +370,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                 IconButton(
                                   icon: const Icon(Icons.close),
                                   onPressed: () => _toggleVideo(index),
-                                  tooltip: 'Close player',
+                                  tooltip: context.tr('Close player'),
                                 ),
                             ],
                           ),
@@ -350,17 +379,18 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                     );
                   }),
                 const SizedBox(height: 16),
-                Text('Quizzes', style: theme.textTheme.titleLarge),
+                Text(context.tr('Quizzes'), style: theme.textTheme.titleLarge),
                 const SizedBox(height: 8),
                 if (_quizzes.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No quizzes yet'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(context.tr('No quizzes yet')),
                   )
                 else
                   ..._quizzes.map((quiz) {
-                    final title = (quiz['title'] ?? quiz['name'] ?? 'Quiz')
-                        .toString();
+                    final title =
+                        (quiz['title'] ?? quiz['name'] ?? context.tr('Quiz'))
+                            .toString();
                     final quizId = quiz['id'] as int;
                     final isCompleted =
                         quiz['completed'] as bool? ??
@@ -376,7 +406,9 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                       ),
                       title: Text(title, style: theme.textTheme.titleMedium),
                       subtitle: bestScore != null
-                          ? Text('Best score: ${bestScore.toStringAsFixed(0)}%')
+                          ? Text(
+                              '${context.tr('Best score')}: ${bestScore.toStringAsFixed(0)}%',
+                            )
                           : null,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -385,7 +417,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                             Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: Chip(
-                                label: const Text('Completed'),
+                                label: Text(context.tr('Completed')),
                                 backgroundColor: Colors.green.shade50,
                                 labelStyle: TextStyle(
                                   color: Colors.green.shade700,
@@ -408,10 +440,10 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                             },
                             child: Text(
                               isCompleted && canRetake
-                                  ? 'Retake'
+                                  ? context.tr('Retake')
                                   : isCompleted
-                                  ? 'Review'
-                                  : 'Take quiz',
+                                  ? context.tr('Review')
+                                  : context.tr('Take quiz'),
                             ),
                           ),
                         ],
@@ -437,7 +469,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Course Completed!',
+                                    context.tr('Course Completed!'),
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
                                           fontWeight: FontWeight.bold,
@@ -446,7 +478,9 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'You have successfully completed all quizzes.',
+                                    context.tr(
+                                      'You have successfully completed all quizzes.',
+                                    ),
                                     style: TextStyle(
                                       color: Colors.green.shade700,
                                     ),

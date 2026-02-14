@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -174,7 +175,11 @@ class _QuizScreenState extends State<QuizScreen> {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Unable to submit quiz: ${e.toString()}')),
+        SnackBar(
+          content: Text(
+            '${context.tr('Unable to submit quiz')}: ${e.toString()}',
+          ),
+        ),
       );
     }
   }
@@ -197,7 +202,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 children: [
                   const Icon(Icons.cloud_off, size: 48),
                   const SizedBox(height: 12),
-                  const Text('Unable to load quiz'),
+                  Text(context.tr('Unable to load quiz')),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
@@ -205,7 +210,7 @@ class _QuizScreenState extends State<QuizScreen> {
                         _loadFuture = _loadQuiz();
                       });
                     },
-                    child: const Text('Retry'),
+                    child: Text(context.tr('Retry')),
                   ),
                 ],
               ),
@@ -213,7 +218,7 @@ class _QuizScreenState extends State<QuizScreen> {
           }
 
           if (_questions.isEmpty) {
-            return const Center(child: Text('No questions available'));
+            return Center(child: Text(context.tr('No questions available')));
           }
 
           // Show results if quiz is submitted
@@ -273,7 +278,9 @@ class _QuizScreenState extends State<QuizScreen> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                isPassed ? 'Quiz Passed!' : 'Quiz Failed',
+                                isPassed
+                                    ? context.tr('Quiz Passed!')
+                                    : context.tr('Quiz Failed'),
                                 style: theme.textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isPassed ? Colors.green : Colors.red,
@@ -281,7 +288,7 @@ class _QuizScreenState extends State<QuizScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Score: $formattedScore',
+                                '${context.tr('Score')}: $formattedScore',
                                 style: theme.textTheme.titleLarge,
                               ),
                             ],
@@ -290,7 +297,10 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                       const SizedBox(height: 16),
                       // Question results
-                      Text('Review Answers', style: theme.textTheme.titleLarge),
+                      Text(
+                        context.tr('Review Answers'),
+                        style: theme.textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 8),
                       ..._questions.map((question) {
                         final rawId = question['id'];
@@ -352,7 +362,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                       child: Text(
                                         (question['question'] ??
                                                 question['text'] ??
-                                                'Question')
+                                                context.tr('Question'))
                                             .toString(),
                                         style: theme.textTheme.titleMedium,
                                       ),
@@ -426,7 +436,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                                 left: 8,
                                               ),
                                               child: Text(
-                                                'Your answer',
+                                                context.tr('Your answer'),
                                                 style: TextStyle(
                                                   color: Colors.red.shade700,
                                                   fontSize: 12,
@@ -439,7 +449,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                                 left: 8,
                                               ),
                                               child: Text(
-                                                'Correct',
+                                                context.tr('Correct'),
                                                 style: TextStyle(
                                                   color: Colors.green.shade700,
                                                   fontSize: 12,
@@ -458,7 +468,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                     children: [
                                       if (displayUserAnswer != null)
                                         Text(
-                                          'Your answer: $displayUserAnswer',
+                                          '${context.tr('Your answer')}: $displayUserAnswer',
                                           style: TextStyle(
                                             color: isCorrect
                                                 ? Colors.green.shade700
@@ -467,7 +477,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                         ),
                                       if (displayCorrectAnswer != null)
                                         Text(
-                                          'Correct answer: '
+                                          '${context.tr('Correct answer')}: '
                                           '$displayCorrectAnswer',
                                           style: TextStyle(
                                             color: Colors.green.shade700,
@@ -492,7 +502,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Close'),
+                      child: Text(context.tr('Close')),
                     ),
                   ),
                 ),
@@ -527,13 +537,13 @@ class _QuizScreenState extends State<QuizScreen> {
                             Text(
                               (question['question'] ??
                                       question['text'] ??
-                                      'Question')
+                                      context.tr('Question'))
                                   .toString(),
                               style: theme.textTheme.titleMedium,
                             ),
                             const SizedBox(height: 8),
                             if (options.isEmpty)
-                              const Text('No options provided')
+                              Text(context.tr('No options provided'))
                             else
                               for (var i = 0; i < options.length; i++)
                                 RadioListTile<int>(
@@ -571,7 +581,7 @@ class _QuizScreenState extends State<QuizScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Submit quiz'),
+                        : Text(context.tr('Submit quiz')),
                   ),
                 ),
               ),

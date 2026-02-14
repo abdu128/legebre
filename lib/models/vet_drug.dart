@@ -115,4 +115,30 @@ class VetDrug {
       updatedAt: parseDate(json['updatedAt']),
     );
   }
+
+  VetDrug copyWith({String? status, double? price, String? description}) {
+    return VetDrug(
+      id: id,
+      name: name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      status: status ?? this.status,
+      imageUrl: imageUrl,
+      category: category,
+      unit: unit,
+      stock: stock,
+      manufacturer: manufacturer,
+      usage: usage,
+      dosage: dosage,
+      storage: storage,
+      sellerName: sellerName,
+      contactPhone: contactPhone,
+      contactWhatsapp: contactWhatsapp,
+      deliveryRegions: deliveryRegions,
+      sellerId: sellerId,
+      photos: photos,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 }

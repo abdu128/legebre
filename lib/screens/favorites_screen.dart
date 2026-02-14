@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/animal.dart';
+import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/livestock_card.dart';
@@ -44,7 +45,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Favorites',
+              context.tr('Favorites'),
               style: theme.textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -78,13 +79,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             child: Column(
                               children: [
                                 Text(
-                                  'Unable to load favorites',
+                                  context.tr('Unable to load favorites'),
                                   style: theme.textTheme.titleMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 TextButton(
                                   onPressed: _refresh,
-                                  child: const Text('Retry'),
+                                  child: Text(context.tr('Retry')),
                                 ),
                               ],
                             ),
@@ -96,13 +97,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     if (items.isEmpty) {
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 80),
+                        children: [
+                          const SizedBox(height: 80),
                           EmptyState(
                             icon: Icons.favorite_border,
-                            title: 'No favorites yet',
-                            description:
-                                'Save animals you like to view them later.',
+                            title: context.tr('No favorites yet'),
+                            description: context.tr(
+                              'Save animals you like to view them later.',
+                            ),
                           ),
                         ],
                       );
@@ -112,11 +114,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       itemCount: items.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: .75,
-                      ),
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: .62,
+                          ),
                       itemBuilder: (_, index) =>
                           LivestockCard(item: items[index]),
                     );
@@ -130,4 +132,3 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 }
-

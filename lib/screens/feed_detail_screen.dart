@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/feed_item.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
@@ -23,11 +24,14 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
   int _photoIndex = 0;
   bool _loadingContact = true;
   Map<String, dynamic>? _contact;
+  bool _statusBusy = false;
+  bool _isSold = false;
 
   @override
   void initState() {
     super.initState();
     _feed = widget.item;
+    _isSold = _statusIsSold(_feed.status);
     _fetchDetails();
     _loadContact();
   }
@@ -38,7 +42,10 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
       final api = context.read<AppState>().api;
       final fresh = await api.getFeed(widget.item.id);
       if (!mounted) return;
-      setState(() => _feed = fresh);
+      setState(() {
+        _feed = fresh;
+        _isSold = _statusIsSold(fresh.status);
+      });
       _loadContact();
     } catch (_) {
       // Keep showing cached data if network fails.
@@ -70,17 +77,19 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     return const [];
   }
 
+  bool _statusIsSold(String? status) {
+    if (status == null) return false;
+    return status.trim().toUpperCase() == 'SOLD';
+  }
+
   Future<void> _handleContact(String channel, String value) async {
     final messenger = ScaffoldMessenger.of(context);
     final trimmed = value.trim();
     if (trimmed.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'No ${channel == 'CALL' ? 'phone' : 'WhatsApp'} contact provided',
-          ),
-        ),
-      );
+      final missingMessage = channel == 'CALL'
+          ? context.tr('No phone contact provided')
+          : context.tr('No WhatsApp contact provided');
+      messenger.showSnackBar(SnackBar(content: Text(missingMessage)));
       return;
     }
 
@@ -91,13 +100,10 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         ? await _launchPhone(trimmed)
         : await _launchWhatsapp(trimmed);
     if (!launched && mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to open ${channel == 'CALL' ? 'dialer' : 'WhatsApp'}',
-          ),
-        ),
-      );
+      final failureMessage = channel == 'CALL'
+          ? context.tr('Unable to open dialer')
+          : context.tr('Unable to open WhatsApp');
+      messenger.showSnackBar(SnackBar(content: Text(failureMessage)));
     }
   }
 
@@ -115,9 +121,11 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
         if (!mounted) return false;
         final messenger = ScaffoldMessenger.of(context);
         messenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Session expired. Please log in again to contact suppliers.',
+              context.tr(
+                'Session expired. Please log in again to contact suppliers.',
+              ),
             ),
           ),
         );
@@ -142,16 +150,59 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _changeStatus(bool sold) async {
+    if (_statusBusy) return;
+    setState(() {
+      _statusBusy = true;
+      _isSold = sold;
+      _feed = _feed.copyWith(status: sold ? 'SOLD' : 'AVAILABLE');
+    });
+
+    final messenger = ScaffoldMessenger.of(context);
+    final api = context.read<AppState>().api;
+    try {
+      await api.changeFeedStatus(_feed.id, sold ? 'SOLD' : 'AVAILABLE');
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            sold
+                ? context.tr('Listing marked as sold')
+                : context.tr('Listing available again'),
+          ),
+        ),
+      );
+    } on ApiException catch (error) {
+      setState(() {
+        _isSold = !sold;
+        _feed = _feed.copyWith(status: _isSold ? 'SOLD' : 'AVAILABLE');
+      });
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      setState(() {
+        _isSold = !sold;
+        _feed = _feed.copyWith(status: _isSold ? 'SOLD' : 'AVAILABLE');
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.tr('Failed to update status'))),
+      );
+    } finally {
+      if (mounted) setState(() => _statusBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currency = NumberFormat.currency(
-      locale: 'en_ET',
+      locale: context.l10n.localeTag,
       decimalDigits: 0,
       symbol: 'ETB ',
     );
     final priceText = _feed.price != null
         ? currency.format(_feed.price)
-        : 'Contact seller';
+        : context.tr('Contact seller');
+    final user = context.watch<AppState>().user;
+    final isOwner = user?.id == _feed.sellerId;
+    final statusLabel = _isSold ? 'SOLD' : (_feed.status ?? 'AVAILABLE');
 
     String extractContact(String? value, String fallbackKey) {
       final direct = value?.trim() ?? '';
@@ -261,7 +312,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           ],
                         ),
                       ),
-                      _StatusChip(label: _feed.status),
+                      _StatusChip(label: statusLabel),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -270,14 +321,17 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     runSpacing: 8,
                     children: [
                       if ((_feed.feedType ?? '').isNotEmpty)
-                        _InfoPill(icon: Icons.category, label: _feed.feedType!),
+                        _InfoPill(icon: Icons.grain, label: _feed.feedType!),
                       if ((_feed.animalType ?? '').isNotEmpty)
                         _InfoPill(icon: Icons.pets, label: _feed.animalType!),
                       if ((_feed.brand ?? '').isNotEmpty)
-                        _InfoPill(icon: Icons.factory, label: _feed.brand!),
+                        _InfoPill(
+                          icon: Icons.storefront_rounded,
+                          label: _feed.brand!,
+                        ),
                       if ((_feed.location ?? '').isNotEmpty)
                         _InfoPill(
-                          icon: Icons.location_pin,
+                          icon: Icons.location_on,
                           label: _feed.location!,
                         ),
                     ],
@@ -293,16 +347,21 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                     items: [
                       if (_feed.weight != null)
                         _InfoTile(
-                          label: 'Weight',
+                          label: context.tr('Weight'),
                           value:
                               '${_feed.weight!.toStringAsFixed(_feed.weight! % 1 == 0 ? 0 : 1)} kg',
                         ),
                       if (_feed.unit != null && _feed.unit!.isNotEmpty)
-                        _InfoTile(label: 'Unit', value: _feed.unit!),
+                        _InfoTile(
+                          label: context.tr('Unit'),
+                          value: _feed.unit!,
+                        ),
                       if (_feed.expiryDate != null)
                         _InfoTile(
-                          label: 'Expiry date',
-                          value: DateFormat.yMMMMd().format(_feed.expiryDate!),
+                          label: context.tr('Expiry date'),
+                          value: DateFormat.yMMMMd(
+                            context.l10n.localeTag,
+                          ).format(_feed.expiryDate!),
                         ),
                     ],
                   ),
@@ -316,6 +375,15 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                       onCallTapped: (value) => _handleContact('CALL', value),
                       onWhatsappTapped: (value) =>
                           _handleContact('WHATSAPP', value),
+                    ),
+                  if (isOwner)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _SellerActionsCard(
+                        isSold: _isSold,
+                        busy: _statusBusy,
+                        onChanged: _changeStatus,
+                      ),
                     ),
                   if (_isLoading)
                     const Padding(
@@ -336,7 +404,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     return Container(
       color: AppColors.background,
       child: const Center(
-        child: Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey),
+        child: Icon(Icons.grain, size: 48, color: Colors.grey),
       ),
     );
   }
@@ -466,11 +534,13 @@ class _SellerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = displayName.trim().isNotEmpty
         ? displayName.trim()
-        : 'Supplier';
+        : context.tr('Supplier');
     final avatarLetter = name[0].toUpperCase();
-    final contactHint = phone.isNotEmpty
-        ? phone
-        : (whatsapp.isNotEmpty ? whatsapp : 'Contact coming soon');
+    final hasDirectContact =
+        phone.trim().isNotEmpty || whatsapp.trim().isNotEmpty;
+    final contactHint = hasDirectContact
+        ? context.tr('Contact seller')
+        : context.tr('Contact coming soon');
 
     return Container(
       width: double.infinity,
@@ -490,7 +560,7 @@ class _SellerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Supplier profile',
+            context.tr('Supplier profile'),
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -549,7 +619,7 @@ class _SellerCard extends StatelessWidget {
                       ? null
                       : () => onCallTapped!(phone),
                   icon: const Icon(Icons.call),
-                  label: const Text('Call'),
+                  label: Text(context.tr('Call')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -559,11 +629,64 @@ class _SellerCard extends StatelessWidget {
                       ? null
                       : () => onWhatsappTapped!(whatsapp),
                   icon: const Icon(Icons.chat_rounded),
-                  label: const Text('WhatsApp'),
+                  label: Text(context.tr('WhatsApp')),
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SellerActionsCard extends StatelessWidget {
+  const _SellerActionsCard({
+    required this.isSold,
+    required this.busy,
+    required this.onChanged,
+  });
+
+  final bool isSold;
+  final bool busy;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .05),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr('Seller actions'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: isSold,
+            onChanged: busy ? null : onChanged,
+            title: Text(context.tr('Mark as sold')),
+            subtitle: Text(
+              context.tr('Buyers will see the listing as unavailable.'),
+            ),
+          ),
+          if (busy) const LinearProgressIndicator(minHeight: 2),
         ],
       ),
     );

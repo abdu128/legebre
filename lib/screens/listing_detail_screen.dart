@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
@@ -71,12 +72,12 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       if (_isFavorite) {
         await api.addFavorite(widget.item.id);
         messenger.showSnackBar(
-          const SnackBar(content: Text('Added to favorites')),
+          SnackBar(content: Text(context.tr('Added to favorites'))),
         );
       } else {
         await api.removeFavorite(widget.item.id);
         messenger.showSnackBar(
-          const SnackBar(content: Text('Removed from favorites')),
+          SnackBar(content: Text(context.tr('Removed from favorites'))),
         );
       }
     } on ApiException catch (error) {
@@ -85,7 +86,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     } catch (_) {
       setState(() => _isFavorite = !_isFavorite);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could not update favorites')),
+        SnackBar(content: Text(context.tr('Could not update favorites'))),
       );
     } finally {
       if (mounted) setState(() => _favoriteBusy = false);
@@ -105,7 +106,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            sold ? 'Listing marked as sold' : 'Listing available again',
+            sold
+                ? context.tr('Listing marked as sold')
+                : context.tr('Listing available again'),
           ),
         ),
       );
@@ -115,7 +118,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     } catch (_) {
       setState(() => _isSold = !sold);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Failed to update status')),
+        SnackBar(content: Text(context.tr('Failed to update status'))),
       );
     } finally {
       if (mounted) setState(() => _statusBusy = false);
@@ -130,9 +133,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('No $missingLabel contact provided')),
-      );
+      final missingMessage = missingLabel.toLowerCase() == 'phone'
+          ? context.tr('No phone contact provided')
+          : context.tr('No WhatsApp contact provided');
+      messenger.showSnackBar(SnackBar(content: Text(missingMessage)));
       return;
     }
 
@@ -144,9 +148,10 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         : await _launchWhatsapp(trimmed);
 
     if (!launched) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Unable to open $missingLabel app')),
-      );
+      final failureMessage = missingLabel.toLowerCase() == 'phone'
+          ? context.tr('Unable to open dialer')
+          : context.tr('Unable to open WhatsApp');
+      messenger.showSnackBar(SnackBar(content: Text(failureMessage)));
     }
   }
 
@@ -164,9 +169,11 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         if (!mounted) return false;
         final messenger = ScaffoldMessenger.of(context);
         messenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Session expired. Please log in again to contact sellers.',
+              context.tr(
+                'Session expired. Please log in again to contact sellers.',
+              ),
             ),
           ),
         );
@@ -191,10 +198,16 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  String? _sanitizeContact(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(
-      locale: 'en_ET',
+      locale: context.l10n.localeTag,
       symbol: 'ETB ',
       decimalDigits: 0,
     );
@@ -207,11 +220,17 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
     final sellerName =
         widget.item.sellerName ??
         _contact?['sellerName']?.toString() ??
-        'Verified seller';
-    final sellerPhone =
-        widget.item.sellerPhone ?? _contact?['phone']?.toString();
-    final sellerWhatsapp =
-        widget.item.sellerWhatsapp ?? _contact?['whatsapp']?.toString();
+        context.tr('Verified seller');
+    final sellerPhone = _sanitizeContact(
+      widget.item.sellerPhone ?? _contact?['phone']?.toString(),
+    );
+    final sellerWhatsapp = _sanitizeContact(
+      widget.item.sellerWhatsapp ?? _contact?['whatsapp']?.toString(),
+    );
+    final hasDirectContact = sellerPhone != null || sellerWhatsapp != null;
+    final contactHint = hasDirectContact
+        ? context.tr('Contact seller')
+        : context.tr('Contact coming soon');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -331,7 +350,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                   Flexible(
                                     child: Text(
                                       widget.item.location ??
-                                          'Location not provided',
+                                          context.tr('Location not provided'),
                                     ),
                                   ),
                                 ],
@@ -395,7 +414,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                       ),
                     const SizedBox(height: 24),
                     _SectionCard(
-                      title: 'Seller profile',
+                      title: context.tr('Seller profile'),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -428,9 +447,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      sellerPhone ??
-                                          sellerWhatsapp ??
-                                          'Contact coming soon',
+                                      contactHint,
                                       style: const TextStyle(
                                         color: Colors.grey,
                                       ),
@@ -464,7 +481,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                           value: sellerPhone,
                                         ),
                                   icon: const Icon(Icons.call),
-                                  label: const Text('Call'),
+                                  label: Text(context.tr('Call')),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -478,7 +495,7 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                           value: sellerWhatsapp,
                                         ),
                                   icon: const Icon(Icons.chat_rounded),
-                                  label: const Text('WhatsApp'),
+                                  label: Text(context.tr('WhatsApp')),
                                 ),
                               ),
                             ],
@@ -489,16 +506,18 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                     if (isOwner) ...[
                       const SizedBox(height: 16),
                       _SectionCard(
-                        title: 'Seller actions',
+                        title: context.tr('Seller actions'),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             SwitchListTile(
                               value: _isSold,
                               onChanged: _statusBusy ? null : _updateStatus,
-                              title: const Text('Mark as sold'),
-                              subtitle: const Text(
-                                'Buyers will see the listing as unavailable.',
+                              title: Text(context.tr('Mark as sold')),
+                              subtitle: Text(
+                                context.tr(
+                                  'Buyers will see the listing as unavailable.',
+                                ),
                               ),
                             ),
                             if (_statusBusy)

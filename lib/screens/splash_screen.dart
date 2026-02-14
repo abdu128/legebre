@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -30,16 +31,16 @@ class SplashScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Legebere',
-                  style: TextStyle(
+                Text(
+                  context.tr('Legebere'),
+                  style: const TextStyle(
                     fontSize: 30,
                     fontWeight: FontWeight.bold,
                     color: AppColors.deepBrown,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text('Trusted livestock marketplace'),
+                Text(context.tr('Trusted livestock marketplace')),
                 const SizedBox(height: 32),
                 const CircularProgressIndicator(color: AppColors.primaryGreen),
               ],

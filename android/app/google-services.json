@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "1080256908966",
+    "project_id": "helo-741df",
+    "storage_bucket": "helo-741df.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080256908966:android:3a3cc74aa4886bec7dee67",
+        "android_client_info": {
+          "package_name": "com.company.legebre"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1GgaH6aDHKecfc4lQTTJxpbUaudMAIKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080256908966:android:c6b91571d8e5d1ac7dee67",
+        "android_client_info": {
+          "package_name": "com.example.legebre"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1GgaH6aDHKecfc4lQTTJxpbUaudMAIKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1080256908966:android:9b0d88e5a93efb2e7dee67",
+        "android_client_info": {
+          "package_name": "com.example.timedeliveryclient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1GgaH6aDHKecfc4lQTTJxpbUaudMAIKk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
 
@@ -88,14 +89,14 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
     try {
       await api.createVetDrug(fields: fields, photo: _photo);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Vet listing created')),
+        SnackBar(content: Text(context.tr('Vet listing created'))),
       );
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Failed to submit listing')),
+        SnackBar(content: Text(context.tr('Failed to submit listing'))),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -105,7 +106,7 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add vet supply')),
+      appBar: AppBar(title: Text(context.tr('Add vet supply'))),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -113,11 +114,13 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             children: [
               Text(
-                'Provide accurate medical instructions to keep farmers safe.',
+                context.tr(
+                  'Provide accurate medical instructions to keep farmers safe.',
+                ),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 20),
-              _SectionTitle('Cover photo'),
+              _SectionTitle(context.tr('Cover photo')),
               const SizedBox(height: 12),
               _PhotoPicker(
                 photo: _photo,
@@ -127,22 +130,22 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              _SectionTitle('Product basics'),
+              _SectionTitle(context.tr('Product basics')),
               const SizedBox(height: 12),
               _Field(
                 controller: _drugNameController,
-                hint: 'Drug name *',
-                validator: _required,
+                hint: context.tr('Drug name *'),
+                validator: _requiredValidator(context),
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _brandController,
-                hint: 'Brand (e.g., VetCare)',
+                hint: context.tr('Brand (e.g., VetCare)'),
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _categoryController,
-                hint: 'Category (e.g., Antibiotic)',
+                hint: context.tr('Category (e.g., Antibiotic)'),
               ),
               const SizedBox(height: 12),
               Row(
@@ -150,16 +153,16 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                   Expanded(
                     child: _Field(
                       controller: _priceController,
-                      hint: 'Price (ETB) *',
+                      hint: context.tr('Price (ETB) *'),
                       keyboardType: TextInputType.number,
-                      validator: _required,
+                      validator: _requiredValidator(context),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _Field(
                       controller: _unitController,
-                      hint: 'Unit (e.g., per vial)',
+                      hint: context.tr('Unit (e.g., per vial)'),
                     ),
                   ),
                 ],
@@ -170,7 +173,7 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                   Expanded(
                     child: _Field(
                       controller: _stockController,
-                      hint: 'Stock quantity',
+                      hint: context.tr('Stock quantity'),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -178,19 +181,21 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _status,
-                      decoration: const InputDecoration(labelText: 'Status'),
-                      items: const [
+                      decoration: InputDecoration(
+                        labelText: context.tr('Status'),
+                      ),
+                      items: [
                         DropdownMenuItem(
                           value: 'AVAILABLE',
-                          child: Text('Available'),
+                          child: Text(context.tr('Available')),
                         ),
                         DropdownMenuItem(
                           value: 'LOW_STOCK',
-                          child: Text('Low stock'),
+                          child: Text(context.tr('Low stock')),
                         ),
                         DropdownMenuItem(
                           value: 'OUT_OF_STOCK',
-                          child: Text('Out of stock'),
+                          child: Text(context.tr('Out of stock')),
                         ),
                       ],
                       onChanged: (value) {
@@ -202,49 +207,54 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              _Field(controller: _manufacturerController, hint: 'Manufacturer'),
+              _Field(
+                controller: _manufacturerController,
+                hint: context.tr('Manufacturer'),
+              ),
               const SizedBox(height: 12),
               _Field(
                 controller: _descriptionController,
-                hint: 'Short description',
+                hint: context.tr('Short description'),
                 maxLines: 3,
-                validator: _required,
+                validator: _requiredValidator(context),
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _locationController,
-                hint: 'Location (city / region)',
-                validator: _required,
+                hint: context.tr('Location (city / region)'),
+                validator: _requiredValidator(context),
               ),
               const SizedBox(height: 24),
-              _SectionTitle('Dosage & usage'),
+              _SectionTitle(context.tr('Dosage & usage')),
               const SizedBox(height: 12),
               _Field(
                 controller: _usageController,
-                hint: 'Usage instructions',
+                hint: context.tr('Usage instructions'),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _dosageController,
-                hint: 'Dosage instructions',
+                hint: context.tr('Dosage instructions'),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
               _Field(
                 controller: _storageController,
-                hint: 'Storage conditions',
+                hint: context.tr('Storage conditions'),
               ),
               const SizedBox(height: 24),
-              _SectionTitle('Delivery details'),
+              _SectionTitle(context.tr('Delivery details')),
               const SizedBox(height: 12),
               _Field(
                 controller: _deliveryRegionsController,
-                hint: 'Delivery regions',
+                hint: context.tr('Delivery regions'),
               ),
               const SizedBox(height: 8),
               Text(
-                'Buyers will use the contact methods tied to your seller profile.',
+                context.tr(
+                  'Buyers will use the contact methods tied to your seller profile.',
+                ),
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
@@ -258,7 +268,7 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Publish listing'),
+                    : Text(context.tr('Publish listing')),
               ),
             ],
           ),
@@ -267,11 +277,13 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
     );
   }
 
-  String? _required(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Required field';
-    }
-    return null;
+  String? Function(String?) _requiredValidator(BuildContext context) {
+    return (value) {
+      if (value == null || value.trim().isEmpty) {
+        return context.tr('Required field');
+      }
+      return null;
+    };
   }
 }
 
