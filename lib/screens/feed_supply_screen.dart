@@ -19,10 +19,19 @@ class FeedSupplyScreen extends StatefulWidget {
 }
 
 class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
-  late Future<List<FeedItem>> _feedsFuture;
+  final ScrollController _scrollController = ScrollController();
+  final List<FeedItem> _feeds = [];
   final _searchController = TextEditingController();
   String _searchTerm = '';
   String _statusFilter = 'ALL';
+  bool _isInitialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _loadError;
+  int _nextPage = 1;
+  int _queryVersion = 0;
+
+  static const int _pageSize = 20;
 
   static const _statusOptions = [
     _StatusFilterOption('ALL', 'All feeds'),
@@ -34,35 +43,91 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
   @override
   void initState() {
     super.initState();
-    _feedsFuture = _loadFeeds();
+    _scrollController.addListener(_handleScroll);
+    _loadFeeds(reset: true);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<List<FeedItem>> _loadFeeds() async {
-    final api = context.read<AppState>().api;
+  Map<String, dynamic> _buildFilters() {
     final filters = <String, dynamic>{};
     if (_searchTerm.isNotEmpty) filters['q'] = _searchTerm;
     if (_statusFilter != 'ALL') filters['status'] = _statusFilter;
-    return api.getFeeds(filters: filters);
+    return filters;
+  }
+
+  Future<void> _loadFeeds({bool reset = false}) async {
+    if (reset) {
+      _queryVersion += 1;
+      setState(() {
+        _feeds.clear();
+        _nextPage = 1;
+        _hasMore = true;
+        _loadError = null;
+        _isInitialLoading = true;
+        _isLoadingMore = false;
+      });
+    } else {
+      if (_isInitialLoading || _isLoadingMore || !_hasMore) return;
+      setState(() {
+        _isLoadingMore = true;
+        _loadError = null;
+      });
+    }
+
+    final queryVersion = _queryVersion;
+    final pageToLoad = _nextPage;
+
+    final api = context.read<AppState>().api;
+    try {
+      final fetched = await api.getFeeds(
+        filters: _buildFilters(),
+        page: pageToLoad,
+        limit: _pageSize,
+      );
+      if (!mounted || queryVersion != _queryVersion) return;
+
+      setState(() {
+        _feeds.addAll(fetched);
+        _nextPage = pageToLoad + 1;
+        _hasMore = fetched.length == _pageSize;
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (!mounted || queryVersion != _queryVersion) return;
+      setState(() {
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = 'failed';
+      });
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 280) {
+      _loadFeeds();
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _feedsFuture = _loadFeeds();
-    });
-    await _feedsFuture;
+    await _loadFeeds(reset: true);
   }
 
   void _applySearch(String value) {
     setState(() {
       _searchTerm = value.trim();
-      _feedsFuture = _loadFeeds();
     });
+    _loadFeeds(reset: true);
   }
 
   Future<void> _openAddListing() async {
@@ -95,6 +160,7 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
@@ -159,8 +225,8 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                                 onSelected: (_) {
                                   setState(() {
                                     _statusFilter = option.value;
-                                    _feedsFuture = _loadFeeds();
                                   });
+                                  _loadFeeds(reset: true);
                                 },
                               ),
                             );
@@ -172,76 +238,87 @@ class _FeedSupplyScreenState extends State<FeedSupplyScreen> {
                   ),
                 ),
               ),
-              FutureBuilder<List<FeedItem>>(
-                future: _feedsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 80),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.cloud_off, size: 48),
-                            const SizedBox(height: 12),
-                            Text(
-                              context.tr('Could not load feed items'),
-                              style: theme.textTheme.titleMedium,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _refresh,
-                              child: Text(context.tr('Retry')),
-                            ),
-                          ],
+              if (_isInitialLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (_loadError != null && _feeds.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.cloud_off, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          context.tr('Could not load feed items'),
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    );
-                  }
-                  final items = snapshot.data ?? const <FeedItem>[];
-                  if (items.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: EmptyState(
-                          icon: Icons.storefront,
-                          title: context.tr('No feed listings yet'),
-                          description: context.tr(
-                            'Suppliers will publish feeds and supplements here soon.',
-                          ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => _loadFeeds(reset: true),
+                          child: Text(context.tr('Retry')),
                         ),
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 320,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: .64,
-                          ),
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = items[index];
-                        return FeedCard(
-                          item: item,
-                          onTap: () => _openDetail(item),
-                        );
-                      }, childCount: items.length),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                )
+              else if (_feeds.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: EmptyState(
+                      icon: Icons.storefront,
+                      title: context.tr('No feed listings yet'),
+                      description: context.tr(
+                        'Suppliers will publish feeds and supplements here soon.',
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 320,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: .64,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final item = _feeds[index];
+                      return FeedCard(
+                        item: item,
+                        onTap: () => _openDetail(item),
+                      );
+                    }, childCount: _feeds.length),
+                  ),
+                ),
+              if (_isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (_loadError != null && _feeds.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: _loadFeeds,
+                        child: Text(context.tr('Retry')),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

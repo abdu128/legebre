@@ -20,10 +20,19 @@ class VetCareScreen extends StatefulWidget {
 }
 
 class _VetCareScreenState extends State<VetCareScreen> {
-  late Future<List<VetDrug>> _drugsFuture;
+  final ScrollController _scrollController = ScrollController();
+  final List<VetDrug> _drugs = [];
   final _searchController = TextEditingController();
   String _searchTerm = '';
   String _statusFilter = 'ALL';
+  bool _isInitialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _loadError;
+  int _nextPage = 1;
+  int _queryVersion = 0;
+
+  static const int _pageSize = 20;
 
   static const _statusOptions = [
     _StatusFilterOption('ALL', 'All supplies'),
@@ -35,35 +44,91 @@ class _VetCareScreenState extends State<VetCareScreen> {
   @override
   void initState() {
     super.initState();
-    _drugsFuture = _loadDrugs();
+    _scrollController.addListener(_handleScroll);
+    _loadDrugs(reset: true);
   }
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<List<VetDrug>> _loadDrugs() async {
-    final api = context.read<AppState>().api;
+  Map<String, dynamic> _buildFilters() {
     final filters = <String, dynamic>{};
     if (_searchTerm.isNotEmpty) filters['q'] = _searchTerm;
     if (_statusFilter != 'ALL') filters['status'] = _statusFilter;
-    return api.getVetDrugs(filters: filters);
+    return filters;
+  }
+
+  Future<void> _loadDrugs({bool reset = false}) async {
+    if (reset) {
+      _queryVersion += 1;
+      setState(() {
+        _drugs.clear();
+        _nextPage = 1;
+        _hasMore = true;
+        _loadError = null;
+        _isInitialLoading = true;
+        _isLoadingMore = false;
+      });
+    } else {
+      if (_isInitialLoading || _isLoadingMore || !_hasMore) return;
+      setState(() {
+        _isLoadingMore = true;
+        _loadError = null;
+      });
+    }
+
+    final queryVersion = _queryVersion;
+    final pageToLoad = _nextPage;
+
+    final api = context.read<AppState>().api;
+    try {
+      final fetched = await api.getVetDrugs(
+        filters: _buildFilters(),
+        page: pageToLoad,
+        limit: _pageSize,
+      );
+      if (!mounted || queryVersion != _queryVersion) return;
+
+      setState(() {
+        _drugs.addAll(fetched);
+        _nextPage = pageToLoad + 1;
+        _hasMore = fetched.length == _pageSize;
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (!mounted || queryVersion != _queryVersion) return;
+      setState(() {
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = 'failed';
+      });
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 280) {
+      _loadDrugs();
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _drugsFuture = _loadDrugs();
-    });
-    await _drugsFuture;
+    await _loadDrugs(reset: true);
   }
 
   void _applySearch(String value) {
     setState(() {
       _searchTerm = value.trim();
-      _drugsFuture = _loadDrugs();
     });
+    _loadDrugs(reset: true);
   }
 
   Future<void> _openAddListing() async {
@@ -96,6 +161,7 @@ class _VetCareScreenState extends State<VetCareScreen> {
         child: RefreshIndicator(
           onRefresh: _refresh,
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
@@ -166,8 +232,8 @@ class _VetCareScreenState extends State<VetCareScreen> {
                                 onSelected: (_) {
                                   setState(() {
                                     _statusFilter = option.value;
-                                    _drugsFuture = _loadDrugs();
                                   });
+                                  _loadDrugs(reset: true);
                                 },
                               ),
                             );
@@ -179,76 +245,87 @@ class _VetCareScreenState extends State<VetCareScreen> {
                   ),
                 ),
               ),
-              FutureBuilder<List<VetDrug>>(
-                future: _drugsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 80),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.cloud_off, size: 48),
-                            const SizedBox(height: 12),
-                            Text(
-                              context.tr('Unable to load vet supplies'),
-                              style: theme.textTheme.titleMedium,
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _refresh,
-                              child: Text(context.tr('Retry')),
-                            ),
-                          ],
+              if (_isInitialLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (_loadError != null && _drugs.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.cloud_off, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          context.tr('Unable to load vet supplies'),
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    );
-                  }
-                  final drugs = snapshot.data ?? const <VetDrug>[];
-                  if (drugs.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: EmptyState(
-                          icon: Icons.medical_services_outlined,
-                          title: context.tr('No vet supplies yet'),
-                          description: context.tr(
-                            'Licensed pharmacists will list their products here soon.',
-                          ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => _loadDrugs(reset: true),
+                          child: Text(context.tr('Retry')),
                         ),
-                      ),
-                    );
-                  }
-                  return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                    sliver: SliverGrid(
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 320,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            childAspectRatio: .72,
-                          ),
-                      delegate: SliverChildBuilderDelegate((context, index) {
-                        final item = drugs[index];
-                        return VetDrugCard(
-                          item: item,
-                          onTap: () => _openDetail(item),
-                        );
-                      }, childCount: drugs.length),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                )
+              else if (_drugs.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: EmptyState(
+                      icon: Icons.medical_services_outlined,
+                      title: context.tr('No vet supplies yet'),
+                      description: context.tr(
+                        'Licensed pharmacists will list their products here soon.',
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+                  sliver: SliverGrid(
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 320,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: .72,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final item = _drugs[index];
+                      return VetDrugCard(
+                        item: item,
+                        onTap: () => _openDetail(item),
+                      );
+                    }, childCount: _drugs.length),
+                  ),
+                ),
+              if (_isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                )
+              else if (_loadError != null && _drugs.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Center(
+                      child: TextButton(
+                        onPressed: _loadDrugs,
+                        child: Text(context.tr('Retry')),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -261,7 +338,6 @@ class _EmergencyCard extends StatelessWidget {
   const _EmergencyCard({required this.theme});
 
   final ThemeData theme;
-  static const _hotlineNumber = '+251 911 123 456';
 
   @override
   Widget build(BuildContext context) {
