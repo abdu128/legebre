@@ -16,26 +16,30 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = AppColors.primaryGreen;
-    final borderColor = selected
-        ? baseColor
-        : Colors.grey.withValues(alpha: .4);
-
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
+    return Padding(
+      padding: const EdgeInsets.only(right: 10),
       child: FilterChip(
         showCheckmark: false,
         selected: selected,
         onSelected: onSelected,
-        side: BorderSide(color: borderColor),
+        side: BorderSide(
+          color: selected
+              ? AppColors.primaryGreen
+              : Colors.grey.shade300,
+          width: selected ? 1.5 : 1,
+        ),
         backgroundColor: Colors.white,
-        selectedColor: baseColor.withValues(alpha: .12),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        selectedColor: AppColors.primaryGreen.withValues(alpha: .1),
+        elevation: selected ? 1 : 0,
+        pressElevation: 2,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        labelPadding: EdgeInsets.zero,
         label: Text(
           label,
           style: TextStyle(
-            color: selected ? baseColor : Colors.grey[900],
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? AppColors.primaryGreen : Colors.grey.shade700,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 13,
           ),
         ),
       ),

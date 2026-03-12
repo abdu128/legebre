@@ -5,6 +5,7 @@ import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
 import '../state/app_state.dart';
+import '../utils/responsive.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/livestock_card.dart';
@@ -19,8 +20,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  late Future<List<Animal>> _animalsFuture;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  final List<Animal> _animals = [];
+  bool _isInitialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _loadError;
+  int _nextPage = 1;
+  int _queryVersion = 0;
+
+  static const int _pageSize = 20;
 
   String _searchQuery = '';
   String? _selectedCategory;
@@ -30,10 +41,7 @@ class HomeScreenState extends State<HomeScreen> {
   bool _onlyVerifiedSellers = false;
 
   static const List<_AnimalCategory> _categoryOptions = [
-    _AnimalCategory(
-      labelKey: 'Cattle',
-      value: 'CATTLE',
-    ),
+    _AnimalCategory(labelKey: 'Cattle', value: 'CATTLE'),
     _AnimalCategory(labelKey: 'Goat', value: 'GOAT'),
     _AnimalCategory(labelKey: 'Sheep', value: 'SHEEP'),
     _AnimalCategory(labelKey: 'Camel', value: 'CAMEL'),
@@ -43,25 +51,101 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _animalsFuture = _fetchAnimals();
+    _scrollController.addListener(_handleScroll);
+    _loadNextPage(reset: true);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<List<Animal>> _fetchAnimals() async {
-    final api = context.read<AppState>().api;
-    return api.getAnimals();
+  Map<String, dynamic> _buildApiFilters() {
+    final filters = <String, dynamic>{};
+    if (_selectedCategory != null) {
+      filters['animalType'] = _selectedCategory;
+    }
+    if (_minPrice != null) {
+      filters['minPrice'] = _minPrice;
+    }
+    if (_maxPrice != null) {
+      filters['maxPrice'] = _maxPrice;
+    }
+    return filters;
+  }
+
+  Future<void> _loadNextPage({bool reset = false}) async {
+    if (reset) {
+      _queryVersion += 1;
+      setState(() {
+        _animals.clear();
+        _nextPage = 1;
+        _hasMore = true;
+        _loadError = null;
+        _isInitialLoading = true;
+        _isLoadingMore = false;
+      });
+    } else {
+      if (_isInitialLoading || _isLoadingMore || !_hasMore) {
+        return;
+      }
+      setState(() {
+        _isLoadingMore = true;
+        _loadError = null;
+      });
+    }
+
+    final currentQueryVersion = _queryVersion;
+    final pageToLoad = _nextPage;
+
+    try {
+      final api = context.read<AppState>().api;
+      final fetched = await api.getAnimals(
+        filters: _buildApiFilters(),
+        limit: _pageSize,
+        page: pageToLoad,
+      );
+
+      if (!mounted || currentQueryVersion != _queryVersion) {
+        return;
+      }
+
+      setState(() {
+        _animals.addAll(fetched);
+        _nextPage = pageToLoad + 1;
+        _hasMore = fetched.length == _pageSize;
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (!mounted || currentQueryVersion != _queryVersion) {
+        return;
+      }
+
+      setState(() {
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _loadError = 'failed';
+      });
+    }
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 280) {
+      _loadNextPage();
+    }
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _animalsFuture = _fetchAnimals();
-    });
-    await _animalsFuture;
+    await _loadNextPage(reset: true);
   }
 
   Future<void> refreshFromShell() => _refresh();
@@ -181,8 +265,7 @@ class HomeScreenState extends State<HomeScreen> {
       pageBuilder: (_, __, ___) => const SizedBox.shrink(),
       transitionBuilder: (dialogContext, animation, secondaryAnimation, child) {
         final width = MediaQuery.of(context).size.width;
-        final sheetWidth =
-            (width * .65).clamp(280.0, width.toDouble()) as double;
+        final sheetWidth = (width * .65).clamp(280.0, width.toDouble());
         final slideAnimation =
             Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(
               CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
@@ -330,11 +413,17 @@ class HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        height: 28,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(height: 4),
                       Text(
-                        context.tr('Powered by Legebere'),
+                        'Legebere',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                          letterSpacing: .4,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.deepBrown,
                         ),
                       ),
                     ],
@@ -355,82 +444,102 @@ class HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
-            ),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Row(
                       children: [
-                        Text(
-                          context.tr('Legebere'),
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            color: AppColors.primaryGreen,
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Image.asset(
+                                'assets/images/logo.png',
+                                height: 36,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Legebere',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.deepBrown,
+                                  letterSpacing: -.3,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                context.tr('Find quality livestock'),
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          context.tr('Find quality livestock'),
-                          style: theme.textTheme.bodyMedium,
+                        Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          elevation: 2,
+                          shadowColor: Colors.black.withValues(alpha: .08),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: _openFiltersSheet,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Icon(
+                                _filtersActive
+                                    ? Icons.filter_alt_rounded
+                                    : Icons.filter_alt_outlined,
+                                color: AppColors.primaryGreen,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          elevation: 2,
+                          shadowColor: Colors.black.withValues(alpha: .08),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: _showQuickMenu,
+                            child: const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Icon(
+                                Icons.menu_rounded,
+                                color: AppColors.primaryGreen,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: .05),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        tooltip: context.tr('Open menu'),
-                        onPressed: _showQuickMenu,
-                        icon: const Icon(Icons.menu_rounded),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 20)),
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: .05),
-                        blurRadius: 24,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
+                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  SliverToBoxAdapter(
+                    child: Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      elevation: 2,
+                      shadowColor: Colors.black.withValues(alpha: .06),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
                         child: TextField(
                           controller: _searchController,
                           cursorColor: AppColors.primaryGreen,
@@ -441,11 +550,15 @@ class HomeScreenState extends State<HomeScreen> {
                             });
                           },
                           decoration: InputDecoration(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.search_rounded,
-                              color: Colors.grey,
+                              color: Colors.grey.shade400,
                             ),
                             hintText: context.tr('Search livestock...'),
+                            hintStyle: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w400,
+                            ),
                             border: InputBorder.none,
                             isDense: true,
                             suffixIcon: _searchQuery.isEmpty
@@ -461,47 +574,46 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: _categoryOptions.map((category) {
-                      final label = context.tr(category.labelKey);
-                      return CategoryChip(
-                        label: label,
-                        selected: _selectedCategory == category.value,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = selected
-                                ? category.value
-                                : null;
-                          });
-                        },
-                      );
-                    }).toList(),
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: _categoryOptions.map((category) {
+                          final label = context.tr(category.labelKey);
+                          return CategoryChip(
+                            label: label,
+                            selected: _selectedCategory == category.value,
+                            onSelected: (selected) {
+                              final nextCategory = selected
+                                  ? category.value
+                                  : null;
+                              if (nextCategory == _selectedCategory) {
+                                return;
+                              }
+                              setState(() {
+                                _selectedCategory = nextCategory;
+                              });
+                              _loadNextPage(reset: true);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              FutureBuilder<List<Animal>>(
-                future: _animalsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverToBoxAdapter(
+                  const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                  if (_isInitialLoading)
+                    const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 40),
                         child: Center(child: CircularProgressIndicator()),
                       ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return SliverToBoxAdapter(
+                    )
+                  else if (_loadError != null && _animals.isEmpty)
+                    SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 40),
                         child: Column(
@@ -518,17 +630,15 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(height: 8),
                             TextButton(
-                              onPressed: _refresh,
+                              onPressed: () => _loadNextPage(reset: true),
                               child: Text(context.tr('Retry')),
                             ),
                           ],
                         ),
                       ),
-                    );
-                  }
-                  final items = snapshot.data ?? const <Animal>[];
-                  if (items.isEmpty) {
-                    return SliverToBoxAdapter(
+                    )
+                  else if (_animals.isEmpty)
+                    SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 40),
                         child: EmptyState(
@@ -539,40 +649,69 @@ class HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                    );
-                  }
-                  final filteredItems = _filterAnimals(items);
-                  if (filteredItems.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: EmptyState(
-                          icon: Icons.filter_alt_rounded,
-                          title: context.tr('No animals match your filters'),
-                          description: context.tr(
-                            'Try adjusting your filters or search.',
+                    )
+                  else ...[
+                    Builder(
+                      builder: (context) {
+                        final filteredItems = _filterAnimals(_animals);
+                        if (filteredItems.isEmpty) {
+                          return SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: EmptyState(
+                                icon: Icons.filter_alt_rounded,
+                                title: context.tr(
+                                  'No animals match your filters',
+                                ),
+                                description: context.tr(
+                                  'Try adjusting your filters or search.',
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        return SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 240,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: .58,
+                              ),
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final item = filteredItems[index];
+                            return LivestockCard(item: item);
+                          }, childCount: filteredItems.length),
+                        );
+                      },
+                    ),
+                    if (_isLoadingMore)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                      )
+                    else if (_loadError != null)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Center(
+                            child: TextButton(
+                              onPressed: _loadNextPage,
+                              child: Text(context.tr('Retry')),
+                            ),
                           ),
                         ),
                       ),
-                    );
-                  }
-                  return SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: .62,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final item = filteredItems[index];
-                      return LivestockCard(item: item);
-                    }, childCount: filteredItems.length),
-                  );
-                },
+                  ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 100)),
-            ],
+            ),
           ),
         ),
       ),
@@ -724,17 +863,27 @@ class HomeScreenState extends State<HomeScreen> {
 
     if (result == null) return;
 
+    final hasChanged =
+        _minPrice != result.minPrice ||
+        _maxPrice != result.maxPrice ||
+        _onlyVerifiedAnimals != result.onlyVerifiedAnimals ||
+        _onlyVerifiedSellers != result.onlyVerifiedSellers;
+
     setState(() {
       _minPrice = result.minPrice;
       _maxPrice = result.maxPrice;
       _onlyVerifiedAnimals = result.onlyVerifiedAnimals;
       _onlyVerifiedSellers = result.onlyVerifiedSellers;
     });
+
+    if (hasChanged) {
+      _loadNextPage(reset: true);
+    }
   }
 
   Future<void> _openLanguagePicker() async {
     final appState = context.read<AppState>();
-    final currentCode = appState.locale?.languageCode ?? 'en';
+    final currentCode = appState.locale.languageCode;
 
     final selectedCode = await showModalBottomSheet<String>(
       context: context,
@@ -812,10 +961,7 @@ class _FilterResult {
 }
 
 class _AnimalCategory {
-  const _AnimalCategory({
-    required this.labelKey,
-    required this.value,
-  });
+  const _AnimalCategory({required this.labelKey, required this.value});
 
   final String labelKey;
   final String value;

@@ -46,12 +46,12 @@ class VetDrugCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .06),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Colors.black.withValues(alpha: .05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -60,7 +60,7 @@ class VetDrugCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+                top: Radius.circular(20),
               ),
               child: AspectRatio(
                 aspectRatio: 4 / 3,
@@ -125,16 +125,18 @@ class VetDrugCard extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Text(
                     item.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 18,
+                      fontSize: 16,
+                      color: Color(0xFF2D3436),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -144,8 +146,8 @@ class VetDrugCard extends StatelessWidget {
                     priceText,
                     style: const TextStyle(
                       color: AppColors.primaryGreen,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                   if (summary.isNotEmpty) ...[
@@ -199,7 +201,7 @@ class VetDrugCard extends StatelessWidget {
                 ],
               ),
             ),
-          ],
+        )],
         ),
       ),
     );

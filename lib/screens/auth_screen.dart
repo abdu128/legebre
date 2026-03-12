@@ -142,30 +142,28 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Container(
-                      width: 48,
+                    Image.asset(
+                      'assets/images/logo.png',
                       height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.grass_rounded,
-                        color: AppColors.primaryGreen,
-                      ),
+                      fit: BoxFit.contain,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          context.tr('Legebere'),
+                          'Legebere',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: AppColors.primaryGreen,
+                            color: AppColors.deepBrown,
                           ),
                         ),
-                        Text(context.tr('Welcome back')),
+                        Text(
+                          context.tr('Welcome back'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
                       ],
                     ),
                     const Spacer(),
@@ -212,163 +210,200 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           child: Align(
                             alignment: Alignment.center,
-                            child: Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(32),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: .05),
-                                    blurRadius: 40,
-                                    offset: const Offset(0, 20),
-                                  ),
-                                ],
-                              ),
-                              child: Form(
-                                key: _formKey,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          isLogin
-                                              ? context.tr('Log in')
-                                              : context.tr('Join Legebere'),
-                                          style: theme.textTheme.headlineSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                        SegmentedButton<AuthMode>(
-                                          showSelectedIcon: false,
-                                          segments: [
-                                            ButtonSegment(
-                                              value: AuthMode.login,
-                                              label: Text(context.tr('Login')),
-                                            ),
-                                            ButtonSegment(
-                                              value: AuthMode.register,
-                                              label: Text(
-                                                context.tr('Register'),
-                                              ),
-                                            ),
-                                          ],
-                                          selected: {_mode},
-                                          onSelectionChanged: (value) =>
-                                              setState(
-                                                () => _mode = value.first,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 24),
-                                    if (!isLogin) ...[
-                                      TextFormField(
-                                        controller: _nameController,
-                                        textCapitalization:
-                                            TextCapitalization.words,
-                                        decoration: InputDecoration(
-                                          labelText: context.tr('Full name'),
-                                          prefixIcon: const Icon(
-                                            Icons.person,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        validator: (value) {
-                                          if (value == null ||
-                                              value.trim().isEmpty) {
-                                            return context.tr(
-                                              'Name is required',
-                                            );
-                                          }
-                                          return null;
-                                        },
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 480),
+                              child: Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: .05,
                                       ),
-                                      const SizedBox(height: 16),
-                                      DropdownButtonFormField<String>(
-                                        value: _role,
-                                        decoration: InputDecoration(
-                                          labelText: context.tr('Role'),
-                                          prefixIcon: const Icon(
-                                            Icons.badge_outlined,
+                                      blurRadius: 40,
+                                      offset: const Offset(0, 20),
+                                    ),
+                                  ],
+                                ),
+                                child: Form(
+                                  key: _formKey,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            isLogin
+                                                ? context.tr('Log in')
+                                                : context.tr('Join Legebere'),
+                                            style: theme.textTheme.headlineSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
                                           ),
-                                        ),
-                                        items: [
-                                          DropdownMenuItem(
-                                            value: 'BUYER',
-                                            child: Text(context.tr('Buyer')),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'SELLER',
-                                            child: Text(context.tr('Seller')),
+                                          SegmentedButton<AuthMode>(
+                                            showSelectedIcon: false,
+                                            segments: [
+                                              ButtonSegment(
+                                                value: AuthMode.login,
+                                                label: Text(
+                                                  context.tr('Login'),
+                                                ),
+                                              ),
+                                              ButtonSegment(
+                                                value: AuthMode.register,
+                                                label: Text(
+                                                  context.tr('Register'),
+                                                ),
+                                              ),
+                                            ],
+                                            selected: {_mode},
+                                            onSelectionChanged: (value) =>
+                                                setState(
+                                                  () => _mode = value.first,
+                                                ),
                                           ),
                                         ],
-                                        onChanged: (value) {
-                                          if (value == null) return;
-                                          setState(() => _role = value);
-                                        },
                                       ),
-                                      const SizedBox(height: 16),
-                                      TextFormField(
-                                        controller: _emailController,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
-                                        decoration: InputDecoration(
-                                          labelText: context.tr(
-                                            'Email (optional)',
-                                          ),
-                                          prefixIcon: const Icon(
-                                            Icons.alternate_email_rounded,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      TextFormField(
-                                        controller: _phoneController,
-                                        keyboardType: TextInputType.phone,
-                                        decoration: InputDecoration(
-                                          labelText: context.tr('Phone number'),
-                                          prefixIcon: const Icon(
-                                            Icons.phone_rounded,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        validator: (value) {
-                                          if (!isLogin &&
-                                              (value == null ||
-                                                  value.trim().isEmpty)) {
-                                            return context.tr(
-                                              'Phone number is required',
-                                            );
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      const SizedBox(height: 16),
-                                      if (showWhatsappField) ...[
+                                      const SizedBox(height: 24),
+                                      if (!isLogin) ...[
                                         TextFormField(
-                                          controller: _whatsappController,
-                                          keyboardType: TextInputType.phone,
+                                          controller: _nameController,
+                                          textCapitalization:
+                                              TextCapitalization.words,
                                           decoration: InputDecoration(
-                                            labelText: context.tr(
-                                              'WhatsApp number',
-                                            ),
+                                            labelText: context.tr('Full name'),
                                             prefixIcon: const Icon(
-                                              Icons.chat_rounded,
+                                              Icons.person,
                                               color: Colors.grey,
                                             ),
                                           ),
                                           validator: (value) {
-                                            if (_role == 'SELLER' &&
+                                            if (value == null ||
+                                                value.trim().isEmpty) {
+                                              return context.tr(
+                                                'Name is required',
+                                              );
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                        DropdownButtonFormField<String>(
+                                          value: _role,
+                                          decoration: InputDecoration(
+                                            labelText: context.tr('Role'),
+                                            prefixIcon: const Icon(
+                                              Icons.badge_outlined,
+                                            ),
+                                          ),
+                                          items: [
+                                            DropdownMenuItem(
+                                              value: 'BUYER',
+                                              child: Text(context.tr('Buyer')),
+                                            ),
+                                            DropdownMenuItem(
+                                              value: 'SELLER',
+                                              child: Text(context.tr('Seller')),
+                                            ),
+                                          ],
+                                          onChanged: (value) {
+                                            if (value == null) return;
+                                            setState(() => _role = value);
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextFormField(
+                                          controller: _emailController,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          decoration: InputDecoration(
+                                            labelText: context.tr(
+                                              'Email (optional)',
+                                            ),
+                                            prefixIcon: const Icon(
+                                              Icons.alternate_email_rounded,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextFormField(
+                                          controller: _phoneController,
+                                          keyboardType: TextInputType.phone,
+                                          decoration: InputDecoration(
+                                            labelText: context.tr(
+                                              'Phone number',
+                                            ),
+                                            prefixIcon: const Icon(
+                                              Icons.phone_rounded,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          validator: (value) {
+                                            if (!isLogin &&
                                                 (value == null ||
                                                     value.trim().isEmpty)) {
                                               return context.tr(
-                                                'WhatsApp number is required',
+                                                'Phone number is required',
+                                              );
+                                            }
+                                            return null;
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                        if (showWhatsappField) ...[
+                                          TextFormField(
+                                            controller: _whatsappController,
+                                            keyboardType: TextInputType.phone,
+                                            decoration: InputDecoration(
+                                              labelText: context.tr(
+                                                'WhatsApp number',
+                                              ),
+                                              prefixIcon: const Icon(
+                                                Icons.chat_rounded,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            validator: (value) {
+                                              if (_role == 'SELLER' &&
+                                                  (value == null ||
+                                                      value.trim().isEmpty)) {
+                                                return context.tr(
+                                                  'WhatsApp number is required',
+                                                );
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          const SizedBox(height: 16),
+                                        ],
+                                      ],
+                                      if (isLogin) ...[
+                                        TextFormField(
+                                          controller: _identifierController,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          decoration: InputDecoration(
+                                            labelText: context.tr(
+                                              'Email or phone',
+                                            ),
+                                            prefixIcon: const Icon(
+                                              Icons.alternate_email_rounded,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          validator: (value) {
+                                            if (isLogin &&
+                                                (value == null ||
+                                                    value.trim().isEmpty)) {
+                                              return context.tr(
+                                                'Enter your email or phone',
                                               );
                                             }
                                             return null;
@@ -376,133 +411,108 @@ class _AuthScreenState extends State<AuthScreen> {
                                         ),
                                         const SizedBox(height: 16),
                                       ],
-                                    ],
-                                    if (isLogin) ...[
                                       TextFormField(
-                                        controller: _identifierController,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
+                                        controller: _passwordController,
+                                        obscureText: _obscure,
                                         decoration: InputDecoration(
-                                          labelText: context.tr(
-                                            'Email or phone',
-                                          ),
+                                          labelText: context.tr('Password'),
                                           prefixIcon: const Icon(
-                                            Icons.alternate_email_rounded,
+                                            Icons.lock_outline,
                                             color: Colors.grey,
+                                          ),
+                                          suffixIcon: IconButton(
+                                            onPressed: () => setState(
+                                              () => _obscure = !_obscure,
+                                            ),
+                                            icon: Icon(
+                                              _obscure
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                            ),
                                           ),
                                         ),
                                         validator: (value) {
-                                          if (isLogin &&
-                                              (value == null ||
-                                                  value.trim().isEmpty)) {
+                                          if (value == null ||
+                                              value.length < 6) {
                                             return context.tr(
-                                              'Enter your email or phone',
+                                              'Use at least 6 characters',
                                             );
                                           }
                                           return null;
                                         },
                                       ),
-                                      const SizedBox(height: 16),
-                                    ],
-                                    TextFormField(
-                                      controller: _passwordController,
-                                      obscureText: _obscure,
-                                      decoration: InputDecoration(
-                                        labelText: context.tr('Password'),
-                                        prefixIcon: const Icon(
-                                          Icons.lock_outline,
-                                          color: Colors.grey,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          onPressed: () => setState(
-                                            () => _obscure = !_obscure,
-                                          ),
-                                          icon: Icon(
-                                            _obscure
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
-                                          ),
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.length < 6) {
-                                          return context.tr(
-                                            'Use at least 6 characters',
-                                          );
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                                    const SizedBox(height: 24),
-                                    if (isLogin)
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: _submitting
-                                              ? null
-                                              : _openForgotPassword,
-                                          child: Text(
-                                            context.tr('Forgot password?'),
-                                          ),
-                                        ),
-                                      ),
-                                    const SizedBox(height: 8),
-                                    ElevatedButton(
-                                      onPressed: _submitting
-                                          ? null
-                                          : _handleSubmit,
-                                      child: _submitting
-                                          ? const SizedBox(
-                                              height: 22,
-                                              width: 22,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Text(
-                                              isLogin
-                                                  ? context.tr('Log in')
-                                                  : context.tr(
-                                                      'Create account',
-                                                    ),
+                                      const SizedBox(height: 24),
+                                      if (isLogin)
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: _submitting
+                                                ? null
+                                                : _openForgotPassword,
+                                            child: Text(
+                                              context.tr('Forgot password?'),
                                             ),
-                                    ),
-                                    // const SizedBox(height: 12),
-                                    // Align(
-                                    //   alignment: Alignment.center,
-                                    //   child: TextButton(
-                                    //     onPressed: () {},
-                                    //     child: Text(context.tr('Need help?')),
-                                    //   ),
-                                    // ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          isLogin
-                                              ? context.tr(
-                                                  "Don't have an account?",
-                                                )
-                                              : context.tr(
-                                                  'Already have an account?',
-                                                ),
-                                        ),
-                                        TextButton(
-                                          onPressed: _submitting
-                                              ? null
-                                              : _toggleMode,
-                                          child: Text(
-                                            isLogin
-                                                ? context.tr('Sign up')
-                                                : context.tr('Log in'),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ],
+                                      const SizedBox(height: 8),
+                                      ElevatedButton(
+                                        onPressed: _submitting
+                                            ? null
+                                            : _handleSubmit,
+                                        child: _submitting
+                                            ? const SizedBox(
+                                                height: 22,
+                                                width: 22,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white,
+                                                    ),
+                                              )
+                                            : Text(
+                                                isLogin
+                                                    ? context.tr('Log in')
+                                                    : context.tr(
+                                                        'Create account',
+                                                      ),
+                                              ),
+                                      ),
+                                      // const SizedBox(height: 12),
+                                      // Align(
+                                      //   alignment: Alignment.center,
+                                      //   child: TextButton(
+                                      //     onPressed: () {},
+                                      //     child: Text(context.tr('Need help?')),
+                                      //   ),
+                                      // ),
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            isLogin
+                                                ? context.tr(
+                                                    "Don't have an account?",
+                                                  )
+                                                : context.tr(
+                                                    'Already have an account?',
+                                                  ),
+                                          ),
+                                          TextButton(
+                                            onPressed: _submitting
+                                                ? null
+                                                : _toggleMode,
+                                            child: Text(
+                                              isLogin
+                                                  ? context.tr('Sign up')
+                                                  : context.tr('Log in'),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

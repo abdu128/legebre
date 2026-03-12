@@ -43,12 +43,12 @@ class FeedCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .07),
-              blurRadius: 22,
-              offset: const Offset(0, 12),
+              color: Colors.black.withValues(alpha: .05),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -57,7 +57,7 @@ class FeedCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+                top: Radius.circular(20),
               ),
               child: AspectRatio(
                 aspectRatio: 4 / 3,
@@ -120,16 +120,17 @@ class FeedCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontSize: 16,
+                        color: Color(0xFF2D3436),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       priceLabel,
                       style: const TextStyle(
                         color: AppColors.primaryGreen,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                     if (summary.isNotEmpty) ...[

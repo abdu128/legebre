@@ -93,13 +93,27 @@ class LegebreApi {
     XFile file, {
     String fieldName = 'photos',
   }) async {
-    // Ensure backend sees a real image/* MIME type, not application/octet-stream
+    // Detect MIME subtype from file extension
     final lower = file.path.toLowerCase();
-    String subtype = 'jpeg';
+    String subtype = 'jpeg'; // safe default
     if (lower.endsWith('.png')) {
       subtype = 'png';
     } else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
       subtype = 'jpeg';
+    } else if (lower.endsWith('.gif')) {
+      subtype = 'gif';
+    } else if (lower.endsWith('.webp')) {
+      subtype = 'webp';
+    } else if (lower.endsWith('.bmp')) {
+      subtype = 'bmp';
+    } else if (lower.endsWith('.heic') || lower.endsWith('.heif')) {
+      subtype = 'heic';
+    } else if (lower.endsWith('.tiff') || lower.endsWith('.tif')) {
+      subtype = 'tiff';
+    } else if (lower.endsWith('.svg')) {
+      subtype = 'svg+xml';
+    } else if (lower.endsWith('.avif')) {
+      subtype = 'avif';
     }
 
     return http.MultipartFile.fromBytes(

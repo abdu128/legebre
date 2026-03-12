@@ -8,6 +8,7 @@ import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
+import '../utils/responsive.dart';
 
 class AddVetDrugScreen extends StatefulWidget {
   const AddVetDrugScreen({super.key});
@@ -108,169 +109,177 @@ class _AddVetDrugScreenState extends State<AddVetDrugScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Add vet supply'))),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            children: [
-              Text(
-                context.tr(
-                  'Provide accurate medical instructions to keep farmers safe.',
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kFormMaxWidth),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
                 ),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 20),
-              _SectionTitle(context.tr('Cover photo')),
-              const SizedBox(height: 12),
-              _PhotoPicker(
-                photo: _photo,
-                onTap: _pickPhoto,
-                onClear: () {
-                  setState(() => _photo = null);
-                },
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle(context.tr('Product basics')),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _drugNameController,
-                hint: context.tr('Drug name *'),
-                validator: _requiredValidator(context),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _brandController,
-                hint: context.tr('Brand (e.g., VetCare)'),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _categoryController,
-                hint: context.tr('Category (e.g., Antibiotic)'),
-              ),
-              const SizedBox(height: 12),
-              Row(
                 children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _priceController,
-                      hint: context.tr('Price (ETB) *'),
-                      keyboardType: TextInputType.number,
-                      validator: _requiredValidator(context),
+                  Text(
+                    context.tr(
+                      'Provide accurate medical instructions to keep farmers safe.',
                     ),
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Field(
-                      controller: _unitController,
-                      hint: context.tr('Unit (e.g., per vial)'),
-                    ),
+                  const SizedBox(height: 20),
+                  _SectionTitle(context.tr('Cover photo')),
+                  const SizedBox(height: 12),
+                  _PhotoPicker(
+                    photo: _photo,
+                    onTap: _pickPhoto,
+                    onClear: () {
+                      setState(() => _photo = null);
+                    },
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _stockController,
-                      hint: context.tr('Stock quantity'),
-                      keyboardType: TextInputType.number,
-                    ),
+                  const SizedBox(height: 24),
+                  _SectionTitle(context.tr('Product basics')),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _drugNameController,
+                    hint: context.tr('Drug name *'),
+                    validator: _requiredValidator(context),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _status,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Status'),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _brandController,
+                    hint: context.tr('Brand (e.g., VetCare)'),
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _categoryController,
+                    hint: context.tr('Category (e.g., Antibiotic)'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          controller: _priceController,
+                          hint: context.tr('Price (ETB) *'),
+                          keyboardType: TextInputType.number,
+                          validator: _requiredValidator(context),
+                        ),
                       ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'AVAILABLE',
-                          child: Text(context.tr('Available')),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Field(
+                          controller: _unitController,
+                          hint: context.tr('Unit (e.g., per vial)'),
                         ),
-                        DropdownMenuItem(
-                          value: 'LOW_STOCK',
-                          child: Text(context.tr('Low stock')),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          controller: _stockController,
+                          hint: context.tr('Stock quantity'),
+                          keyboardType: TextInputType.number,
                         ),
-                        DropdownMenuItem(
-                          value: 'OUT_OF_STOCK',
-                          child: Text(context.tr('Out of stock')),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _status,
+                          decoration: InputDecoration(
+                            labelText: context.tr('Status'),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'AVAILABLE',
+                              child: Text(context.tr('Available')),
+                            ),
+                            DropdownMenuItem(
+                              value: 'LOW_STOCK',
+                              child: Text(context.tr('Low stock')),
+                            ),
+                            DropdownMenuItem(
+                              value: 'OUT_OF_STOCK',
+                              child: Text(context.tr('Out of stock')),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setState(() => _status = value);
+                          },
                         ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _status = value);
-                      },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _manufacturerController,
+                    hint: context.tr('Manufacturer'),
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _descriptionController,
+                    hint: context.tr('Short description'),
+                    maxLines: 3,
+                    validator: _requiredValidator(context),
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _locationController,
+                    hint: context.tr('Location (city / region)'),
+                    validator: _requiredValidator(context),
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionTitle(context.tr('Dosage & usage')),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _usageController,
+                    hint: context.tr('Usage instructions'),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _dosageController,
+                    hint: context.tr('Dosage instructions'),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _storageController,
+                    hint: context.tr('Storage conditions'),
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionTitle(context.tr('Delivery details')),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _deliveryRegionsController,
+                    hint: context.tr('Delivery regions'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.tr(
+                      'Buyers will use the contact methods tied to your seller profile.',
                     ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(context.tr('Publish listing')),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _manufacturerController,
-                hint: context.tr('Manufacturer'),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _descriptionController,
-                hint: context.tr('Short description'),
-                maxLines: 3,
-                validator: _requiredValidator(context),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _locationController,
-                hint: context.tr('Location (city / region)'),
-                validator: _requiredValidator(context),
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle(context.tr('Dosage & usage')),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _usageController,
-                hint: context.tr('Usage instructions'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _dosageController,
-                hint: context.tr('Dosage instructions'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _storageController,
-                hint: context.tr('Storage conditions'),
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle(context.tr('Delivery details')),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _deliveryRegionsController,
-                hint: context.tr('Delivery regions'),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.tr(
-                  'Buyers will use the contact methods tied to your seller profile.',
-                ),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(context.tr('Publish listing')),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/animal.dart';
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
+import '../utils/responsive.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/livestock_card.dart';
 
@@ -39,94 +40,112 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.tr('Favorites'),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: FutureBuilder<List<Animal>>(
-                  future: _favoritesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(
-                            height: 240,
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        ],
-                      );
-                    }
-                    if (snapshot.hasError) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          const SizedBox(height: 80),
-                          const Center(child: Icon(Icons.cloud_off, size: 48)),
-                          const SizedBox(height: 12),
-                          Center(
-                            child: Column(
-                              children: [
-                                Text(
-                                  context.tr('Unable to load favorites'),
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                                const SizedBox(height: 8),
-                                TextButton(
-                                  onPressed: _refresh,
-                                  child: Text(context.tr('Retry')),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                    final items = snapshot.data ?? const <Animal>[];
-                    if (items.isEmpty) {
-                      return ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          const SizedBox(height: 80),
-                          EmptyState(
-                            icon: Icons.favorite_border,
-                            title: context.tr('No favorites yet'),
-                            description: context.tr(
-                              'Save animals you like to view them later.',
-                            ),
-                          ),
-                        ],
-                      );
-                    }
-                    return GridView.builder(
-                      padding: const EdgeInsets.only(top: 8),
-                      itemCount: items.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: .62,
-                          ),
-                      itemBuilder: (_, index) =>
-                          LivestockCard(item: items[index]),
-                    );
-                  },
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('Favorites'),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.5,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  context.tr('Saved animals you like'),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: FutureBuilder<List<Animal>>(
+                      future: _favoritesFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(
+                                height: 240,
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              const SizedBox(height: 80),
+                              const Center(
+                                child: Icon(Icons.cloud_off, size: 48),
+                              ),
+                              const SizedBox(height: 12),
+                              Center(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      context.tr('Unable to load favorites'),
+                                      style: theme.textTheme.titleMedium,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextButton(
+                                      onPressed: _refresh,
+                                      child: Text(context.tr('Retry')),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        final items = snapshot.data ?? const <Animal>[];
+                        if (items.isEmpty) {
+                          return ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              const SizedBox(height: 80),
+                              EmptyState(
+                                icon: Icons.favorite_border,
+                                title: context.tr('No favorites yet'),
+                                description: context.tr(
+                                  'Save animals you like to view them later.',
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return GridView.builder(
+                          padding: const EdgeInsets.only(top: 8),
+                          itemCount: items.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 240,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: .58,
+                              ),
+                          itemBuilder: (_, index) =>
+                              LivestockCard(item: items[index]),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

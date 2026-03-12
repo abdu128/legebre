@@ -8,6 +8,7 @@ import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
+import '../utils/responsive.dart';
 
 class AddFeedScreen extends StatefulWidget {
   const AddFeedScreen({super.key});
@@ -52,36 +53,12 @@ class _AddFeedScreenState extends State<AddFeedScreen> {
   Future<void> _pickPhotos() async {
     final files = await _picker.pickMultiImage();
     if (files.isEmpty) return;
-
-    const allowedExtensions = ['.jpg', '.jpeg', '.png'];
-    int rejected = 0;
-    final valid = <XFile>[];
-    for (final file in files) {
-      final lower = file.path.toLowerCase();
-      final match = allowedExtensions.any((ext) => lower.endsWith(ext));
-      if (match) {
-        valid.add(file);
-      } else {
-        rejected++;
-      }
-    }
-
     if (!mounted) return;
-
-    if (rejected > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('Only JPEG and PNG images are supported.')),
-        ),
-      );
-    }
-
-    if (valid.isEmpty) return;
 
     setState(() {
       final remaining = 5 - _photos.length;
       if (remaining <= 0) return;
-      _photos.addAll(valid.take(remaining));
+      _photos.addAll(files.take(remaining));
     });
   }
 
@@ -150,146 +127,160 @@ class _AddFeedScreenState extends State<AddFeedScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(context.tr('Add feed listing'))),
       body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            children: [
-              Text(
-                context.tr('Provide accurate nutritional info to help buyers.'),
-              ),
-              const SizedBox(height: 20),
-              _SectionTitle(context.tr('Photos (1-5)')),
-              const SizedBox(height: 12),
-              _PhotoPicker(
-                photos: _photos,
-                onAdd: _pickPhotos,
-                onRemove: (index) => setState(() => _photos.removeAt(index)),
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle(context.tr('Feed basics')),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _feedNameController,
-                hint: context.tr('Feed name *'),
-                validator: _requiredValidator(context),
-              ),
-              const SizedBox(height: 12),
-              _Field(controller: _brandController, hint: context.tr('Brand')),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _feedTypeController,
-                      hint: context.tr('Feed type (e.g., concentrate)'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Field(
-                      controller: _animalTypeController,
-                      hint: context.tr('Animal type'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _priceController,
-                      hint: context.tr('Price (ETB) *'),
-                      keyboardType: TextInputType.number,
-                      validator: _requiredValidator(context),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _status,
-                      decoration: InputDecoration(
-                        labelText: context.tr('Status'),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'AVAILABLE',
-                          child: Text(context.tr('Available')),
-                        ),
-                        DropdownMenuItem(
-                          value: 'LOW_STOCK',
-                          child: Text(context.tr('Low stock')),
-                        ),
-                        DropdownMenuItem(
-                          value: 'OUT_OF_STOCK',
-                          child: Text(context.tr('Out of stock')),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => _status = value);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: _weightController,
-                      hint: context.tr('Weight (kg)'),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Field(
-                      controller: _unitController,
-                      hint: context.tr('Unit (e.g., per bag)'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _expiryController,
-                hint: context.tr('Expiry date (optional)'),
-                readOnly: true,
-                onTap: _pickExpiryDate,
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _descriptionController,
-                hint: context.tr('Description'),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 24),
-              _SectionTitle(context.tr('Location')),
-              const SizedBox(height: 12),
-              _Field(
-                controller: _locationController,
-                hint: context.tr('City / region *'),
-                validator: _requiredValidator(context),
-                suffix: const Icon(
-                  Icons.location_pin,
-                  color: AppColors.primaryGreen,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: kFormMaxWidth),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
                 ),
+                children: [
+                  Text(
+                    context.tr(
+                      'Provide accurate nutritional info to help buyers.',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionTitle(context.tr('Photos (1-5)')),
+                  const SizedBox(height: 12),
+                  _PhotoPicker(
+                    photos: _photos,
+                    onAdd: _pickPhotos,
+                    onRemove: (index) =>
+                        setState(() => _photos.removeAt(index)),
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionTitle(context.tr('Feed basics')),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _feedNameController,
+                    hint: context.tr('Feed name *'),
+                    validator: _requiredValidator(context),
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _brandController,
+                    hint: context.tr('Brand'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          controller: _feedTypeController,
+                          hint: context.tr('Feed type (e.g., concentrate)'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Field(
+                          controller: _animalTypeController,
+                          hint: context.tr('Animal type'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          controller: _priceController,
+                          hint: context.tr('Price (ETB) *'),
+                          keyboardType: TextInputType.number,
+                          validator: _requiredValidator(context),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _status,
+                          decoration: InputDecoration(
+                            labelText: context.tr('Status'),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'AVAILABLE',
+                              child: Text(context.tr('Available')),
+                            ),
+                            DropdownMenuItem(
+                              value: 'LOW_STOCK',
+                              child: Text(context.tr('Low stock')),
+                            ),
+                            DropdownMenuItem(
+                              value: 'OUT_OF_STOCK',
+                              child: Text(context.tr('Out of stock')),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setState(() => _status = value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _Field(
+                          controller: _weightController,
+                          hint: context.tr('Weight (kg)'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _Field(
+                          controller: _unitController,
+                          hint: context.tr('Unit (e.g., per bag)'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _expiryController,
+                    hint: context.tr('Expiry date (optional)'),
+                    readOnly: true,
+                    onTap: _pickExpiryDate,
+                  ),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _descriptionController,
+                    hint: context.tr('Description'),
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 24),
+                  _SectionTitle(context.tr('Location')),
+                  const SizedBox(height: 12),
+                  _Field(
+                    controller: _locationController,
+                    hint: context.tr('City / region *'),
+                    validator: _requiredValidator(context),
+                    suffix: const Icon(
+                      Icons.location_pin,
+                      color: AppColors.primaryGreen,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(context.tr('Publish listing')),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(context.tr('Publish listing')),
-              ),
-              const SizedBox(height: 40),
-            ],
+            ),
           ),
         ),
       ),

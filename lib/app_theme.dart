@@ -95,7 +95,15 @@ class AppTheme {
       unselectedItemColor: Color(0xFFADBAAE),
       type: BottomNavigationBarType.fixed,
       backgroundColor: Colors.white,
-      elevation: 12,
+      elevation: 0,
+      selectedLabelStyle: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+      unselectedLabelStyle: TextStyle(
+        fontWeight: FontWeight.w500,
+        fontSize: 12,
+      ),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       shape: StadiumBorder(),

@@ -87,27 +87,39 @@ class _HomeShellState extends State<HomeShell> {
               label: Text(context.tr('Sell livestock')),
             )
           : null,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home_rounded),
-            label: context.tr('Home'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.favorite_rounded),
-            label: context.tr('Favorites'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.medical_services_rounded),
-            label: context.tr('Vet'),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.menu_book_rounded),
-            label: context.tr('Learn'),
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) => setState(() => _currentIndex = index),
+          items: [
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.home_rounded),
+              label: context.tr('Home'),
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.favorite_rounded),
+              label: context.tr('Favorites'),
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.medical_services_rounded),
+              label: context.tr('Vet'),
+            ),
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.menu_book_rounded),
+              label: context.tr('Learn'),
+            ),
+          ],
+        ),
       ),
     );
   }
