@@ -6,18 +6,17 @@ import 'api_exception.dart';
 import 'auth_storage.dart';
 
 class ApiClient {
-  ApiClient({
-    http.Client? httpClient,
-    AuthStorage? storage,
-  })  : _client = httpClient ?? http.Client(),
-        _storage = storage ?? AuthStorage();
+  ApiClient({http.Client? httpClient, AuthStorage? storage})
+    : _client = httpClient ?? http.Client(),
+      _storage = storage ?? AuthStorage();
 
   final http.Client _client;
   final AuthStorage _storage;
 
-  static const baseUrl = 'https://api.legebere.com';
+  static const baseUrl = 'https://legeber-backend.onrender.com';
 
-  Future<String?> get token async => _cachedToken ??= await _storage.readToken();
+  Future<String?> get token async =>
+      _cachedToken ??= await _storage.readToken();
   String? _cachedToken;
 
   void cacheToken(String? token) {
@@ -34,9 +33,7 @@ class ApiClient {
   }
 
   Future<Map<String, String>> _headers({bool authorized = false}) async {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-    };
+    final headers = <String, String>{'Content-Type': 'application/json'};
     if (authorized) {
       final value = await token;
       if (value == null || value.isEmpty) {
@@ -59,10 +56,7 @@ class ApiClient {
     return _handleResponse(response);
   }
 
-  Future<dynamic> delete(
-    String path, {
-    bool authorized = false,
-  }) async {
+  Future<dynamic> delete(String path, {bool authorized = false}) async {
     final response = await _client.delete(
       _buildUri(path),
       headers: await _headers(authorized: authorized),
@@ -161,5 +155,3 @@ class ApiClient {
     throw ApiException(message, statusCode: statusCode);
   }
 }
-
-
