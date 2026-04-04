@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 const double kFormMaxWidth = 600.0;
 
 /// Max content width for grid / list screens on large displays.
-const double kContentMaxWidth = 1200.0;
+const double kContentMaxWidth = 1360.0;
 
 /// Wraps [child] in a centered, width‑constrained box so the content
 /// doesn't stretch edge‑to‑edge on tablets / desktops.

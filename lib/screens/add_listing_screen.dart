@@ -385,6 +385,13 @@ class _PhotoUploader extends StatelessWidget {
       children: [
         _SectionLabel(label: context.tr('Photos (1-5)')),
         const SizedBox(height: 12),
+        Text(
+          context.tr('Up to 12MB each. JPG, JPEG, PNG, WEBP, HEIC supported.'),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(

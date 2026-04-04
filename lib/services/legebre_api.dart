@@ -716,7 +716,7 @@ class LegebreApi {
     final response = await _client.get(
       '/courses',
       query: {'limit': limit, 'page': page, if (filters != null) ...filters},
-      authorized: true, // Now includes enrollment status if authenticated
+      authorized: false,
     );
     final items = _extractList(
       response,
@@ -728,7 +728,7 @@ class LegebreApi {
   Future<Course> getCourse(int id) async {
     final response = await _client.get(
       '/courses/$id',
-      authorized: true, // Now includes enrollment status if authenticated
+      authorized: false,
     );
     final data = _extractObject(
       response,

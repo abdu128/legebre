@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -212,7 +213,7 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _showQuickMenu() async {
     final theme = Theme.of(context);
     final user = context.read<AppState>().user;
-    const actions = [
+    final actions = [
       // _QuickMenuAction(
       //   value: 'vet',
       //   icon: Icons.healing_rounded,
@@ -238,11 +239,18 @@ class HomeScreenState extends State<HomeScreen> {
         icon: Icons.language_rounded,
         labelKey: 'Change language',
       ),
-      _QuickMenuAction(
-        value: 'logout',
-        icon: Icons.logout_rounded,
-        labelKey: 'Logout',
-      ),
+      if (user == null)
+        const _QuickMenuAction(
+          value: 'login',
+          icon: Icons.login_rounded,
+          labelKey: 'Login',
+        )
+      else
+        const _QuickMenuAction(
+          value: 'logout',
+          icon: Icons.logout_rounded,
+          labelKey: 'Logout',
+        ),
     ];
 
     String? displayPhone;
@@ -446,9 +454,12 @@ class HomeScreenState extends State<HomeScreen> {
     return SafeArea(
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
+          constraints: const BoxConstraints(maxWidth: kContentMaxWidth + 180),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: kIsWeb ? 28 : 20,
+              vertical: kIsWeb ? 20 : 16,
+            ),
             child: RefreshIndicator(
               onRefresh: _refresh,
               child: CustomScrollView(
@@ -457,6 +468,62 @@ class HomeScreenState extends State<HomeScreen> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 slivers: [
+                  if (kIsWeb)
+                    SliverToBoxAdapter(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 18),
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(26),
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primaryGreen.withValues(alpha: .92),
+                              AppColors.secondaryGreen.withValues(alpha: .88),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    context.tr('Find quality livestock'),
+                                    style: theme.textTheme.headlineSmall
+                                        ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    context.tr(
+                                      'Browse verified listings, compare prices, and connect with trusted sellers.',
+                                    ),
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white.withValues(alpha: .92),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: AppColors.primaryGreen,
+                              ),
+                              onPressed: _openFiltersSheet,
+                              icon: const Icon(Icons.tune_rounded),
+                              label: Text(context.tr('Refine Search')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: Row(
                       children: [
@@ -562,7 +629,16 @@ class HomeScreenState extends State<HomeScreen> {
                             border: InputBorder.none,
                             isDense: true,
                             suffixIcon: _searchQuery.isEmpty
-                                ? null
+                                ? IconButton(
+                                    onPressed: _openFiltersSheet,
+                                    tooltip: context.tr('Filters'),
+                                    icon: Icon(
+                                      _filtersActive
+                                          ? Icons.filter_alt_rounded
+                                          : Icons.filter_alt_outlined,
+                                      color: AppColors.primaryGreen,
+                                    ),
+                                  )
                                 : IconButton(
                                     onPressed: _clearSearch,
                                     tooltip: context.tr('Close'),
@@ -670,21 +746,31 @@ class HomeScreenState extends State<HomeScreen> {
                             ),
                           );
                         }
-                        return SliverGrid(
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 240,
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
-                                childAspectRatio: .58,
-                              ),
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final item = filteredItems[index];
-                            return LivestockCard(item: item);
-                          }, childCount: filteredItems.length),
+                        return SliverLayoutBuilder(
+                          builder: (context, constraints) {
+                            final width = constraints.crossAxisExtent;
+                            final maxExtent = width >= 1280
+                                ? 320.0
+                                : width >= 980
+                                ? 290.0
+                                : 240.0;
+                            return SliverGrid(
+                              gridDelegate:
+                                  SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: maxExtent,
+                                    crossAxisSpacing: kIsWeb ? 18 : 14,
+                                    mainAxisSpacing: kIsWeb ? 18 : 14,
+                                    childAspectRatio: .58,
+                                  ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final item = filteredItems[index];
+                                return LivestockCard(item: item);
+                              }, childCount: filteredItems.length),
+                            );
+                          },
                         );
                       },
                     ),

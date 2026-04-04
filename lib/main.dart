@@ -61,7 +61,7 @@ class LegebereApp extends StatelessWidget {
             home = const SplashScreen();
             break;
           case AppStatus.unauthenticated:
-            home = const AuthScreen();
+            home = kIsWeb ? const HomeShell() : const AuthScreen();
             break;
           case AppStatus.authenticated:
             home = const HomeShell();

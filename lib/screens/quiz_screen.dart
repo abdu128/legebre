@@ -511,6 +511,9 @@ class _QuizScreenState extends State<QuizScreen> {
           }
 
           // Show quiz questions
+          final answeredCount = _answerPayload.length;
+          final totalCount = _questions.length;
+          final allAnswered = answeredCount >= totalCount;
           return Column(
             children: [
               Expanded(
@@ -567,22 +570,31 @@ class _QuizScreenState extends State<QuizScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed:
-                        _isSubmitting ||
-                            _answerPayload.length < _questions.length
-                        ? null
-                        : _submit,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(context.tr('Submit quiz')),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!allAnswered)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '${context.tr('Answer all questions to continue')}: $answeredCount/$totalCount',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _isSubmitting || !allAnswered ? null : _submit,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(context.tr('Finish & show answers')),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

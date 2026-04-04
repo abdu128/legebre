@@ -209,29 +209,58 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                 lesson['estimatedTime'])
                             ?.toString();
 
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: theme.colorScheme.primaryContainer,
-                        child: Text(
-                          '${index + 1}',
-                          style: TextStyle(
-                            color: theme.colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: theme.colorScheme.outline.withOpacity(0.15),
                         ),
                       ),
-                      title: Text(title, style: theme.textTheme.titleMedium),
-                      subtitle: description != null && description.isNotEmpty
-                          ? Text(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 14,
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
+                                child: Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color:
+                                        theme.colorScheme.onPrimaryContainer,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                              ),
+                              if (duration != null && duration.isNotEmpty)
+                                Text(
+                                  duration,
+                                  style: theme.textTheme.bodySmall,
+                                ),
+                            ],
+                          ),
+                          if (description != null && description.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Text(
                               description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : null,
-                      trailing: duration != null && duration.isNotEmpty
-                          ? Text(duration, style: theme.textTheme.bodySmall)
-                          : null,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ],
+                      ),
                     );
                   }),
                 const SizedBox(height: 16),

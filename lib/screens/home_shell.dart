@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,6 +12,7 @@ import 'home_screen.dart';
 import 'financial_info_screen.dart';
 import 'vet_care_screen.dart';
 import '../utils/seller_guard.dart';
+import 'auth_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -30,6 +32,123 @@ class _HomeShellState extends State<HomeShell> {
     _homeScreen = HomeScreen(
       key: _homeKey,
       onMenuSelected: _handleMenuSelection,
+    );
+  }
+
+  Future<void> _handleIndexTap(int index) async {
+    final appState = context.read<AppState>();
+    if (!appState.isAuthenticated && index == 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Please log in to continue'))),
+      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _currentIndex = index);
+  }
+
+  Widget _buildWebTopBar() {
+    final appState = context.watch<AppState>();
+    final labels = [
+      context.tr('Home'),
+      context.tr('Favorites'),
+      context.tr('Vet'),
+      context.tr('Learn'),
+    ];
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+      child: Row(
+        children: [
+          Row(
+            children: [
+              Image.asset('assets/images/logo.png', height: 34),
+              const SizedBox(width: 10),
+              Text(
+                'Legebere',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Wrap(
+            spacing: 8,
+            children: List.generate(labels.length, (index) {
+              final selected = _currentIndex == index;
+              return TextButton(
+                onPressed: () => _handleIndexTap(index),
+                style: TextButton.styleFrom(
+                  foregroundColor: selected ? Colors.white : Colors.black87,
+                  backgroundColor: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(labels[index]),
+              );
+            }),
+          ),
+          const SizedBox(width: 12),
+          if (_currentIndex == 0)
+            FilledButton.icon(
+              onPressed: _handleFabPressed,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(context.tr('Sell livestock')),
+            ),
+          const SizedBox(width: 10),
+          appState.isAuthenticated
+              ? OutlinedButton(
+                  onPressed: () => context.read<AppState>().logout(),
+                  child: Text(context.tr('Logout')),
+                )
+              : OutlinedButton(
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const AuthScreen())),
+                  child: Text(context.tr('Login')),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebFooter() {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        runSpacing: 8,
+        children: [
+          Text(
+            'Legebere',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            context.tr('Find quality livestock'),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          Text(
+            'Copyright ${DateTime.now().year} Legebere',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 
@@ -60,6 +179,10 @@ class _HomeShellState extends State<HomeShell> {
       ).push(MaterialPageRoute(builder: (_) => const FinancialInfoScreen()));
     } else if (value == 'logout') {
       context.read<AppState>().logout();
+    } else if (value == 'login') {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
     }
   }
 
@@ -71,6 +194,28 @@ class _HomeShellState extends State<HomeShell> {
       const VetCareScreen(),
       const ELearningScreen(),
     ];
+
+    final appState = context.watch<AppState>();
+
+    if (kIsWeb) {
+      return Scaffold(
+        body: Column(
+          children: [
+            _buildWebTopBar(),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: KeyedSubtree(
+                  key: ValueKey(_currentIndex),
+                  child: pages[_currentIndex],
+                ),
+              ),
+            ),
+            _buildWebFooter(),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       body: AnimatedSwitcher(
@@ -100,7 +245,7 @@ class _HomeShellState extends State<HomeShell> {
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          onTap: _handleIndexTap,
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.home_rounded),

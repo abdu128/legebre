@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'api_exception.dart';
-import 'auth_storage.dart';
+import 'auth_storage.dart'; 
 
 class ApiClient {
   ApiClient({http.Client? httpClient, AuthStorage? storage})
