@@ -1,4 +1,7 @@
 class Animal {
+  static const String _fallbackPhoto =
+      'https://placehold.co/600x400?text=No+photo';
+
   const Animal({
     required this.id,
     required this.sellerId,
@@ -44,10 +47,69 @@ class Animal {
 
   final bool isFavorite;
 
-  String get coverPhoto => photos.firstWhere(
-        (url) => url.isNotEmpty,
-        orElse: () => 'https://placehold.co/600x400?text=No+photo',
-      );
+  List<String> get displayPhotos => photos
+      .map(_resolvePhotoUrl)
+      .where((url) => url.isNotEmpty)
+      .toList(growable: false);
+
+  String get coverPhoto {
+    final resolved = displayPhotos;
+    if (resolved.isNotEmpty) {
+      return resolved.first;
+    }
+    return _fallbackPhoto;
+  }
+
+  static String _resolvePhotoUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return '';
+
+    final protocolRelativeUrl = trimmed.startsWith('//')
+        ? 'https:$trimmed'
+        : trimmed;
+
+    final uri = Uri.tryParse(protocolRelativeUrl);
+    if (uri == null) return '';
+
+    final isHttp = uri.scheme == 'http' || uri.scheme == 'https';
+    if (!isHttp) return '';
+
+    final youtubeId = _extractYoutubeId(uri);
+    if (youtubeId != null && youtubeId.isNotEmpty) {
+      return 'https://img.youtube.com/vi/$youtubeId/hqdefault.jpg';
+    }
+
+    return protocolRelativeUrl;
+  }
+
+  static String? _extractYoutubeId(Uri uri) {
+    final host = uri.host.toLowerCase();
+
+    if (host.contains('youtu.be')) {
+      if (uri.pathSegments.isNotEmpty) {
+        final id = uri.pathSegments.first;
+        if (id.isNotEmpty) return id;
+      }
+      return null;
+    }
+
+    if (host.contains('youtube.com')) {
+      final fromQuery = uri.queryParameters['v'];
+      if (fromQuery != null && fromQuery.isNotEmpty) {
+        return fromQuery;
+      }
+
+      if (uri.pathSegments.length >= 2) {
+        final first = uri.pathSegments[0].toLowerCase();
+        if (first == 'embed' || first == 'shorts' || first == 'live') {
+          final id = uri.pathSegments[1];
+          if (id.isNotEmpty) return id;
+        }
+      }
+    }
+
+    return null;
+  }
 
   Animal copyWith({
     bool? isFavorite,
@@ -79,7 +141,8 @@ class Animal {
     final photosList = (json['photos'] as List?)
             ?.map((item) => item?.toString())
             .whereType<String>()
-            .where((url) => url.isNotEmpty)
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty)
             .toList() ??
         const <String>[];
 

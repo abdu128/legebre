@@ -212,9 +212,9 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
       symbol: 'ETB ',
       decimalDigits: 0,
     );
-    final photos = widget.item.photos.isEmpty
+    final photos = widget.item.displayPhotos.isEmpty
         ? [widget.item.coverPhoto]
-        : widget.item.photos;
+      : widget.item.displayPhotos;
     final user = context.watch<AppState>().user;
     final isOwner = user?.id == widget.item.sellerId;
 

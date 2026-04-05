@@ -151,6 +151,15 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> refreshFromShell() => _refresh();
 
+  Future<void> scrollToTopFromShell() async {
+    if (!_scrollController.hasClients) return;
+    await _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   bool get _filtersActive =>
       _selectedCategory != null ||
       _minPrice != null ||
@@ -484,10 +493,12 @@ class HomeScreenState extends State<HomeScreen> {
                             end: Alignment.bottomRight,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final compactBanner = constraints.maxWidth < 760;
+
+                            if (compactBanner) {
+                              return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
@@ -504,97 +515,113 @@ class HomeScreenState extends State<HomeScreen> {
                                       'Browse verified listings, compare prices, and connect with trusted sellers.',
                                     ),
                                     style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white.withValues(alpha: .92),
+                                      color: Colors.white.withValues(
+                                        alpha: .92,
+                                      ),
                                     ),
                                   ),
                                 ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            FilledButton.icon(
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: AppColors.primaryGreen,
-                              ),
-                              onPressed: _openFiltersSheet,
-                              icon: const Icon(Icons.tune_rounded),
-                              label: Text(context.tr('Refine Search')),
-                            ),
-                          ],
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.tr('Find quality livestock'),
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  context.tr(
+                                    'Browse verified listings, compare prices, and connect with trusted sellers.',
+                                  ),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: .92),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
-                  SliverToBoxAdapter(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Image.asset(
-                                'assets/images/logo.png',
-                                height: 36,
-                                fit: BoxFit.contain,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Legebere',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.deepBrown,
-                                  letterSpacing: -.3,
+                  if (!kIsWeb)
+                    SliverToBoxAdapter(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Image.asset(
+                                  'assets/images/logo.png',
+                                  height: 36,
+                                  fit: BoxFit.contain,
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                context.tr('Find quality livestock'),
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey.shade600,
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Legebere',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.deepBrown,
+                                    letterSpacing: -.3,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  context.tr('Find quality livestock'),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          elevation: 2,
-                          shadowColor: Colors.black.withValues(alpha: .08),
-                          child: InkWell(
+                          Material(
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _openFiltersSheet,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Icon(
-                                _filtersActive
-                                    ? Icons.filter_alt_rounded
-                                    : Icons.filter_alt_outlined,
-                                color: AppColors.primaryGreen,
+                            elevation: 2,
+                            shadowColor: Colors.black.withValues(alpha: .08),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: _openFiltersSheet,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Icon(
+                                  _filtersActive
+                                      ? Icons.filter_alt_rounded
+                                      : Icons.filter_alt_outlined,
+                                  color: AppColors.primaryGreen,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          elevation: 2,
-                          shadowColor: Colors.black.withValues(alpha: .08),
-                          child: InkWell(
+                          const SizedBox(width: 10),
+                          Material(
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _showQuickMenu,
-                            child: const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Icon(
-                                Icons.menu_rounded,
-                                color: AppColors.primaryGreen,
+                            elevation: 2,
+                            shadowColor: Colors.black.withValues(alpha: .08),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: _showQuickMenu,
+                              child: const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Icon(
+                                  Icons.menu_rounded,
+                                  color: AppColors.primaryGreen,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   const SliverToBoxAdapter(child: SizedBox(height: 20)),
                   SliverToBoxAdapter(
                     child: Material(
