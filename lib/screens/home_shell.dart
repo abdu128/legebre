@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
@@ -24,8 +27,45 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
   bool _compactFooterExpanded = false;
+  bool _showWebFooter = true;
+  Timer? _footerShowDebounce;
   final _homeKey = GlobalKey<HomeScreenState>();
   late final HomeScreen _homeScreen;
+
+  @override
+  void dispose() {
+    _footerShowDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _setWebFooterVisible(bool visible) {
+    if (!mounted || _showWebFooter == visible) return;
+    setState(() {
+      _showWebFooter = visible;
+    });
+  }
+
+  bool _handleWebScrollNotification(ScrollNotification notification) {
+    if (!kIsWeb) return false;
+
+    if (notification is ScrollStartNotification ||
+        notification is ScrollUpdateNotification) {
+      _footerShowDebounce?.cancel();
+      _setWebFooterVisible(false);
+      return false;
+    }
+
+    if (notification is ScrollEndNotification ||
+        (notification is UserScrollNotification &&
+            notification.direction == ScrollDirection.idle)) {
+      _footerShowDebounce?.cancel();
+      _footerShowDebounce = Timer(const Duration(milliseconds: 320), () {
+        _setWebFooterVisible(true);
+      });
+    }
+
+    return false;
+  }
 
   @override
   void initState() {
@@ -328,9 +368,7 @@ class _HomeShellState extends State<HomeShell> {
                           : Icons.expand_more_rounded,
                     ),
                     label: Text(
-                      _compactFooterExpanded
-                          ? 'Less info'
-                          : 'More info',
+                      _compactFooterExpanded ? 'Less info' : 'More info',
                     ),
                   ),
                   AnimatedCrossFade(
@@ -446,7 +484,7 @@ class _HomeShellState extends State<HomeShell> {
           }
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -454,15 +492,15 @@ class _HomeShellState extends State<HomeShell> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(flex: 3, child: _buildFooterBrand(theme)),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 18),
                     Expanded(flex: 2, child: _buildFooterQuickLinks(theme)),
-                    const SizedBox(width: 26),
+                    const SizedBox(width: 18),
                     Expanded(flex: 2, child: _buildFooterHighlights(theme)),
                   ],
                 ),
-                const SizedBox(height: 22),
+                const SizedBox(height: 12),
                 Divider(color: Colors.white.withValues(alpha: .2), height: 1),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 14,
                   runSpacing: 8,
@@ -719,23 +757,44 @@ class _HomeShellState extends State<HomeShell> {
       const ELearningScreen(),
     ];
 
-    final appState = context.watch<AppState>();
-
     if (kIsWeb) {
       return Scaffold(
         body: Column(
           children: [
             _buildWebTopBar(),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: KeyedSubtree(
-                  key: ValueKey(_currentIndex),
-                  child: pages[_currentIndex],
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _handleWebScrollNotification,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: KeyedSubtree(
+                    key: ValueKey(_currentIndex),
+                    child: pages[_currentIndex],
+                  ),
                 ),
               ),
             ),
-            _buildWebFooter(),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: SizeTransition(
+                    sizeFactor: animation,
+                    axisAlignment: -1,
+                    child: child,
+                  ),
+                );
+              },
+              child: _showWebFooter
+                  ? KeyedSubtree(
+                      key: const ValueKey('web-footer-visible'),
+                      child: _buildWebFooter(),
+                    )
+                  : const SizedBox(key: ValueKey('web-footer-hidden')),
+            ),
           ],
         ),
       );
