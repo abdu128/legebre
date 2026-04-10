@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
+import '../models/home_ad.dart';
+import '../screens/feed_detail_screen.dart';
+import '../screens/listing_detail_screen.dart';
+import '../screens/vet_drug_detail_screen.dart';
 import '../state/app_state.dart';
 import '../utils/responsive.dart';
 import '../widgets/category_chip.dart';
@@ -23,8 +30,13 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final PageController _adsPageController = PageController(
+    viewportFraction: .94,
+  );
 
   final List<Animal> _animals = [];
+  final List<HomeAd> _homeAds = [];
+  Timer? _adsAutoPlayTimer;
   bool _isInitialLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
@@ -40,6 +52,7 @@ class HomeScreenState extends State<HomeScreen> {
   double? _maxPrice;
   bool _onlyVerifiedAnimals = false;
   bool _onlyVerifiedSellers = false;
+  int _activeAdIndex = 0;
 
   static const List<_AnimalCategory> _categoryOptions = [
     _AnimalCategory(labelKey: 'Cattle', value: 'CATTLE'),
@@ -53,6 +66,8 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
+    _startAdsAutoPlay();
+    _loadHomeAds();
     _loadNextPage(reset: true);
   }
 
@@ -61,7 +76,26 @@ class HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
+    _adsAutoPlayTimer?.cancel();
+    _adsPageController.dispose();
     super.dispose();
+  }
+
+  void _startAdsAutoPlay() {
+    _adsAutoPlayTimer?.cancel();
+    _adsAutoPlayTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      final ads = _topAds;
+      if (ads.length <= 1 || !_adsPageController.hasClients) {
+        return;
+      }
+
+      final nextPage = (_activeAdIndex + 1) % ads.length;
+      _adsPageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   Map<String, dynamic> _buildApiFilters() {
@@ -146,7 +180,7 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _refresh() async {
-    await _loadNextPage(reset: true);
+    await Future.wait([_loadHomeAds(), _loadNextPage(reset: true)]);
   }
 
   Future<void> refreshFromShell() => _refresh();
@@ -166,6 +200,352 @@ class HomeScreenState extends State<HomeScreen> {
       _maxPrice != null ||
       _onlyVerifiedAnimals ||
       _onlyVerifiedSellers;
+
+  List<HomeAd> get _topAds {
+    final ads = _homeAds.where((ad) => ad.showOnTop && ad.isActive).toList();
+    ads.sort((a, b) => b.priority.compareTo(a.priority));
+    return ads.take(5).toList(growable: false);
+  }
+
+  List<HomeAd> get _midAds {
+    final ads = _homeAds.where((ad) => ad.showOnMid && ad.isActive).toList();
+    ads.sort((a, b) => b.priority.compareTo(a.priority));
+    return ads.take(3).toList(growable: false);
+  }
+
+  Future<void> _loadHomeAds() async {
+    try {
+      final api = context.read<AppState>().api;
+      final fetched = await api.getHomeAds(limit: 10);
+      if (!mounted) return;
+
+      setState(() {
+        _homeAds
+          ..clear()
+          ..addAll(fetched);
+        if (_activeAdIndex >= _topAds.length) {
+          _activeAdIndex = 0;
+        }
+      });
+    } catch (_) {
+      // Home should still render even if ads fail.
+    }
+  }
+
+  Future<void> _openAdTarget(HomeAd ad) async {
+    final api = context.read<AppState>().api;
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      switch (ad.targetType) {
+        case 'ANIMAL':
+          if (ad.targetId == null) return;
+          final animal = await api.getAnimal(ad.targetId!);
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ListingDetailScreen(item: animal),
+            ),
+          );
+          return;
+        case 'FEED':
+          if (ad.targetId == null) return;
+          final feed = await api.getFeed(ad.targetId!);
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => FeedDetailScreen(item: feed)),
+          );
+          return;
+        case 'VET_DRUG':
+          if (ad.targetId == null) return;
+          final drug = await api.getVetDrug(ad.targetId!);
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => VetDrugDetailScreen(item: drug)),
+          );
+          return;
+        case 'COURSE':
+          widget.onMenuSelected('learn');
+          return;
+        case 'EXTERNAL':
+          final raw = ad.externalUrl?.trim() ?? '';
+          if (raw.isEmpty) return;
+          final uri = Uri.tryParse(raw);
+          if (uri == null) return;
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        default:
+          return;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.tr('Could not open ad'))),
+      );
+    }
+  }
+
+  Widget _buildTopAdsBanner(ThemeData theme) {
+    final ads = _topAds;
+
+    if (ads.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryGreen.withValues(alpha: .92),
+              AppColors.secondaryGreen.withValues(alpha: .88),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.tr('Find quality livestock'),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              context.tr(
+                'Browse verified listings, compare prices, and connect with trusted sellers.',
+              ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: .92),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_activeAdIndex >= ads.length) {
+      _activeAdIndex = 0;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 168,
+            child: PageView.builder(
+              controller: _adsPageController,
+              itemCount: ads.length,
+              onPageChanged: (index) {
+                if (!mounted) return;
+                setState(() => _activeAdIndex = index);
+              },
+              itemBuilder: (context, index) {
+                final ad = ads[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index == ads.length - 1 ? 0 : 10,
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(24),
+                    onTap: () => _openAdTarget(ad),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        image: DecorationImage(
+                          image: NetworkImage(ad.imageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.black.withValues(alpha: .40),
+                              AppColors.primaryGreen.withValues(alpha: .45),
+                            ],
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: .18),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: .35),
+                                ),
+                              ),
+                              child: const Text(
+                                'Sponsored',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              ad.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              (ad.subtitle?.trim().isNotEmpty ?? false)
+                                  ? ad.subtitle!.trim()
+                                  : context.tr('Tap to view details'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: .9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(ads.length, (index) {
+              final selected = index == _activeAdIndex;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: selected ? 22 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? AppColors.primaryGreen
+                      : AppColors.primaryGreen.withValues(alpha: .25),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMidFeedAds(ThemeData theme) {
+    final ads = _midAds;
+    if (ads.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Sponsored picks',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.deepBrown,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 130,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: ads.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final ad = ads[index];
+              return SizedBox(
+                width: 240,
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  elevation: 2,
+                  shadowColor: Colors.black.withValues(alpha: .08),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () => _openAdTarget(ad),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.horizontal(
+                            left: Radius.circular(18),
+                          ),
+                          child: Image.network(
+                            ad.imageUrl,
+                            width: 92,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 92,
+                              color: AppColors.background,
+                              child: const Icon(
+                                Icons.image_not_supported_rounded,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  ad.targetType,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: AppColors.primaryGreen,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  ad.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
   List<Animal> _filterAnimals(List<Animal> animals) {
     return animals.where((animal) {
@@ -477,79 +857,6 @@ class HomeScreenState extends State<HomeScreen> {
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
                 slivers: [
-                  if (kIsWeb)
-                    SliverToBoxAdapter(
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 18),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(26),
-                          gradient: LinearGradient(
-                            colors: [
-                              AppColors.primaryGreen.withValues(alpha: .92),
-                              AppColors.secondaryGreen.withValues(alpha: .88),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final compactBanner = constraints.maxWidth < 760;
-
-                            if (compactBanner) {
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    context.tr('Find quality livestock'),
-                                    style: theme.textTheme.headlineSmall
-                                        ?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    context.tr(
-                                      'Browse verified listings, compare prices, and connect with trusted sellers.',
-                                    ),
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white.withValues(
-                                        alpha: .92,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  context.tr('Find quality livestock'),
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  context.tr(
-                                    'Browse verified listings, compare prices, and connect with trusted sellers.',
-                                  ),
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: .92),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
                   if (!kIsWeb)
                     SliverToBoxAdapter(
                       child: Row(
@@ -622,6 +929,7 @@ class HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
+                  SliverToBoxAdapter(child: _buildTopAdsBanner(theme)),
                   const SliverToBoxAdapter(child: SizedBox(height: 20)),
                   SliverToBoxAdapter(
                     child: Material(
@@ -781,21 +1089,65 @@ class HomeScreenState extends State<HomeScreen> {
                                 : width >= 980
                                 ? 290.0
                                 : 240.0;
-                            return SliverGrid(
-                              gridDelegate:
-                                  SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: maxExtent,
-                                    crossAxisSpacing: kIsWeb ? 18 : 14,
-                                    mainAxisSpacing: kIsWeb ? 18 : 14,
-                                    childAspectRatio: .58,
+                            final crossSpacing = kIsWeb ? 18.0 : 14.0;
+                            final mainSpacing = kIsWeb ? 18.0 : 14.0;
+                            final crossAxisCount =
+                                ((width + crossSpacing) /
+                                        (maxExtent + crossSpacing))
+                                    .floor()
+                                    .clamp(1, 8);
+                            final splitAtIndex = (5 * crossAxisCount).clamp(
+                              0,
+                              filteredItems.length,
+                            );
+
+                            SliverGrid buildGrid({
+                              required int start,
+                              required int end,
+                            }) {
+                              final length = end - start;
+                              return SliverGrid(
+                                gridDelegate:
+                                    SliverGridDelegateWithMaxCrossAxisExtent(
+                                      maxCrossAxisExtent: maxExtent,
+                                      crossAxisSpacing: crossSpacing,
+                                      mainAxisSpacing: mainSpacing,
+                                      childAspectRatio: .58,
+                                    ),
+                                delegate: SliverChildBuilderDelegate((
+                                  context,
+                                  index,
+                                ) {
+                                  final item = filteredItems[start + index];
+                                  return LivestockCard(item: item);
+                                }, childCount: length),
+                              );
+                            }
+
+                            if (filteredItems.length <= splitAtIndex ||
+                                splitAtIndex == 0) {
+                              return buildGrid(
+                                start: 0,
+                                end: filteredItems.length,
+                              );
+                            }
+
+                            return SliverMainAxisGroup(
+                              slivers: [
+                                buildGrid(start: 0, end: splitAtIndex),
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 18,
+                                    ),
+                                    child: _buildMidFeedAds(theme),
                                   ),
-                              delegate: SliverChildBuilderDelegate((
-                                context,
-                                index,
-                              ) {
-                                final item = filteredItems[index];
-                                return LivestockCard(item: item);
-                              }, childCount: filteredItems.length),
+                                ),
+                                buildGrid(
+                                  start: splitAtIndex,
+                                  end: filteredItems.length,
+                                ),
+                              ],
                             );
                           },
                         );

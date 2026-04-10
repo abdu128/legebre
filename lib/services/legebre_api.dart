@@ -7,6 +7,7 @@ import '../models/app_notification.dart';
 import '../models/course.dart';
 import '../models/feed_item.dart';
 import '../models/financial_info.dart';
+import '../models/home_ad.dart';
 import '../models/user.dart';
 import '../models/vet_drug.dart';
 import 'api_client.dart';
@@ -306,6 +307,25 @@ class LegebreApi {
       preferredKeys: const ['animals', 'data', 'results'],
     );
     return items.map(Animal.fromJson).toList();
+  }
+
+  Future<List<HomeAd>> getHomeAds({String? placement, int limit = 8}) async {
+    final response = await _client.get(
+      '/ads/home',
+      query: {
+        'limit': limit,
+        if (placement != null && placement.trim().isNotEmpty)
+          'placement': placement.trim().toUpperCase(),
+      },
+      authorized: false,
+    );
+
+    final items = _extractList(
+      response,
+      preferredKeys: const ['ads', 'data', 'results'],
+    );
+
+    return items.map(HomeAd.fromJson).toList();
   }
 
   Future<Animal> getAnimal(int id) async {
@@ -726,10 +746,7 @@ class LegebreApi {
   }
 
   Future<Course> getCourse(int id) async {
-    final response = await _client.get(
-      '/courses/$id',
-      authorized: false,
-    );
+    final response = await _client.get('/courses/$id', authorized: false);
     final data = _extractObject(
       response,
       preferredKeys: const ['course', 'data'],
