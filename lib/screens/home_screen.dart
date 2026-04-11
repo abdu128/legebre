@@ -208,9 +208,37 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   List<HomeAd> get _midAds {
-    final ads = _homeAds.where((ad) => ad.showOnMid && ad.isActive).toList();
-    ads.sort((a, b) => b.priority.compareTo(a.priority));
-    return ads.take(3).toList(growable: false);
+    final topCandidates =
+        _homeAds.where((ad) => ad.showOnTop && ad.isActive).toList()
+          ..sort((a, b) => b.priority.compareTo(a.priority));
+
+    final topVisible = topCandidates.take(5).toList(growable: false);
+    final topVisibleIds = topVisible.map((ad) => ad.id).toSet();
+
+    // Keep mid rail as overflow space after top 5, then fill from mid-only ads.
+    final overflowFromTop = topCandidates.skip(5).toList(growable: false);
+    final midOnly =
+        _homeAds
+            .where(
+              (ad) =>
+                  ad.showOnMid && ad.isActive && !topVisibleIds.contains(ad.id),
+            )
+            .toList()
+          ..sort((a, b) => b.priority.compareTo(a.priority));
+
+    final merged = <HomeAd>[];
+    merged.addAll(overflowFromTop);
+
+    for (final ad in midOnly) {
+      if (!merged.any((item) => item.id == ad.id)) {
+        merged.add(ad);
+      }
+      if (merged.length >= 3) {
+        break;
+      }
+    }
+
+    return merged.take(3).toList(growable: false);
   }
 
   Future<void> _loadHomeAds() async {
@@ -468,7 +496,7 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 130,
+          height: 168,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: ads.length,
@@ -476,66 +504,82 @@ class HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final ad = ads[index];
               return SizedBox(
-                width: 240,
+                width: 292,
                 child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  elevation: 2,
-                  shadowColor: Colors.black.withValues(alpha: .08),
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(24),
                     onTap: () => _openAdTarget(ad),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.horizontal(
-                            left: Radius.circular(18),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        image: DecorationImage(
+                          image: NetworkImage(ad.imageUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.black.withValues(alpha: .42),
+                              AppColors.primaryGreen.withValues(alpha: .42),
+                            ],
                           ),
-                          child: Image.network(
-                            ad.imageUrl,
-                            width: 92,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 92,
-                              color: AppColors.background,
-                              child: const Icon(
-                                Icons.image_not_supported_rounded,
-                                color: Colors.grey,
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: .18),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: .35),
+                                ),
+                              ),
+                              child: const Text(
+                                'Sponsored',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  ad.targetType,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: AppColors.primaryGreen,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  ad.title,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                            const Spacer(),
+                            Text(
+                              ad.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 4),
+                            Text(
+                              (ad.subtitle?.trim().isNotEmpty ?? false)
+                                  ? ad.subtitle!.trim()
+                                  : ad.targetType,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white.withValues(alpha: .9),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
