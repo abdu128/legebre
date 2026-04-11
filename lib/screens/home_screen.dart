@@ -883,6 +883,8 @@ class HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final compactWeb = kIsWeb && viewportWidth < 980;
 
     return SafeArea(
       child: Center(
@@ -890,8 +892,16 @@ class HomeScreenState extends State<HomeScreen> {
           constraints: const BoxConstraints(maxWidth: kContentMaxWidth + 180),
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: kIsWeb ? 28 : 20,
-              vertical: kIsWeb ? 20 : 16,
+              horizontal: compactWeb
+                  ? 12
+                  : kIsWeb
+                  ? 28
+                  : 20,
+              vertical: compactWeb
+                  ? 10
+                  : kIsWeb
+                  ? 20
+                  : 16,
             ),
             child: RefreshIndicator(
               onRefresh: _refresh,
@@ -1217,7 +1227,9 @@ class HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                   ],
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: compactWeb ? 44 : 100),
+                  ),
                 ],
               ),
             ),

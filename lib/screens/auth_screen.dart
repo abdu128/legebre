@@ -105,6 +105,9 @@ class _AuthScreenState extends State<AuthScreen> {
           ? context.tr('Welcome back!')
           : context.tr('Account created successfully');
       scaffold.showSnackBar(SnackBar(content: Text(successMessage)));
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
     } on ApiException catch (error) {
       scaffold.showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {

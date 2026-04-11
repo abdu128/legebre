@@ -48,6 +48,11 @@ class _HomeShellState extends State<HomeShell> {
   bool _handleWebScrollNotification(ScrollNotification notification) {
     if (!kIsWeb) return false;
 
+    // React only to the main vertical page scroll, not nested/horizontal carousels.
+    if (notification.depth != 0 || notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
+
     if (notification is ScrollStartNotification ||
         notification is ScrollUpdateNotification) {
       _footerShowDebounce?.cancel();
@@ -108,6 +113,8 @@ class _HomeShellState extends State<HomeShell> {
 
   Widget _buildWebTopBar() {
     final appState = context.watch<AppState>();
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final compactScreen = viewportWidth < 980;
     final labels = [
       context.tr('Home'),
       context.tr('Favorites'),
@@ -158,7 +165,10 @@ class _HomeShellState extends State<HomeShell> {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: compactScreen ? 16 : 28,
+        vertical: compactScreen ? 10 : 14,
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactLayout = constraints.maxWidth < 980;
@@ -190,6 +200,18 @@ class _HomeShellState extends State<HomeShell> {
                         }
                         if (value == 'sell') {
                           await _handleFabPressed();
+                          return;
+                        }
+                        if (value == 'auth') {
+                          if (appState.isAuthenticated) {
+                            context.read<AppState>().logout();
+                          } else {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AuthScreen(),
+                              ),
+                            );
+                          }
                         }
                       },
                       itemBuilder: (context) {
@@ -220,29 +242,21 @@ class _HomeShellState extends State<HomeShell> {
                             ),
                           );
                         }
+                        items.add(const PopupMenuDivider());
+                        items.add(
+                          PopupMenuItem<String>(
+                            value: 'auth',
+                            child: Text(
+                              appState.isAuthenticated
+                                  ? context.tr('Logout')
+                                  : 'Sign in / Register',
+                            ),
+                          ),
+                        );
                         return items;
                       },
                       icon: const Icon(Icons.menu_rounded),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (!appState.isAuthenticated)
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AuthScreen()),
-                        ),
-                        child: const Text('Sign in / Register'),
-                      )
-                    else
-                      OutlinedButton(
-                        onPressed: () => context.read<AppState>().logout(),
-                        child: Text(context.tr('Logout')),
-                      ),
                   ],
                 ),
               ],
@@ -302,7 +316,7 @@ class _HomeShellState extends State<HomeShell> {
 
           if (compact) {
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -344,127 +358,29 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: .35),
-                      ),
-                      backgroundColor: Colors.white.withValues(alpha: .06),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.tr(
+                      'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
                     ),
-                    onPressed: () {
-                      setState(() {
-                        _compactFooterExpanded = !_compactFooterExpanded;
-                      });
-                    },
-                    icon: Icon(
-                      _compactFooterExpanded
-                          ? Icons.expand_less_rounded
-                          : Icons.expand_more_rounded,
-                    ),
-                    label: Text(
-                      _compactFooterExpanded ? 'Less info' : 'More info',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: .9),
+                      height: 1.3,
                     ),
                   ),
-                  AnimatedCrossFade(
-                    duration: const Duration(milliseconds: 220),
-                    firstChild: const SizedBox.shrink(),
-                    secondChild: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
-                        Text(
-                          context.tr(
-                            'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
-                          ),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: .9),
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildFooterStat('5k+', 'Listings'),
-                            _buildFooterStat('1k+', 'Active buyers'),
-                            _buildFooterStat('99%', 'Verified sellers'),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Quick links',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildCompactFooterChip(
-                              'Browse listings',
-                              _scrollHomeToTop,
-                            ),
-                            _buildCompactFooterChip(
-                              'Favorites',
-                              () => _handleIndexTap(1),
-                            ),
-                            _buildCompactFooterChip(
-                              'Vet care',
-                              () => _handleIndexTap(2),
-                            ),
-                            _buildCompactFooterChip(
-                              'E-learning',
-                              () => _handleIndexTap(3),
-                            ),
-                            _buildCompactFooterChip(
-                              'Sell livestock',
-                              _handleFabPressed,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          'Stay connected',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _buildSocialButton(Icons.public_rounded, 'Website'),
-                            _buildSocialButton(
-                              Icons.forum_rounded,
-                              'Community',
-                            ),
-                            _buildSocialButton(
-                              Icons.mail_outline_rounded,
-                              'Contact',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                    crossFadeState: _compactFooterExpanded
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _buildFooterStat('5k+', 'Listings'),
+                      _buildFooterStat('1k+', 'Active buyers'),
+                      _buildFooterStat('99%', 'Verified sellers'),
+                    ],
                   ),
+                  const SizedBox(height: 8),
                   Divider(color: Colors.white.withValues(alpha: .2), height: 1),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Text(
                     'Copyright ${DateTime.now().year} Legebere',
                     style: theme.textTheme.bodySmall?.copyWith(
@@ -484,7 +400,7 @@ class _HomeShellState extends State<HomeShell> {
           }
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -492,15 +408,15 @@ class _HomeShellState extends State<HomeShell> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(flex: 3, child: _buildFooterBrand(theme)),
-                    const SizedBox(width: 18),
+                    const SizedBox(width: 14),
                     Expanded(flex: 2, child: _buildFooterQuickLinks(theme)),
-                    const SizedBox(width: 18),
+                    const SizedBox(width: 14),
                     Expanded(flex: 2, child: _buildFooterHighlights(theme)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Divider(color: Colors.white.withValues(alpha: .2), height: 1),
                 const SizedBox(height: 10),
+                Divider(color: Colors.white.withValues(alpha: .2), height: 1),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 14,
                   runSpacing: 8,
@@ -570,7 +486,7 @@ class _HomeShellState extends State<HomeShell> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           context.tr(
             'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
@@ -580,7 +496,7 @@ class _HomeShellState extends State<HomeShell> {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -605,7 +521,7 @@ class _HomeShellState extends State<HomeShell> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         _buildFooterLink('Browse listings', () => _handleIndexTap(0)),
         _buildFooterLink('Back to top', _scrollHomeToTop),
         _buildFooterLink('Favorites', () => _handleIndexTap(1)),
@@ -627,7 +543,7 @@ class _HomeShellState extends State<HomeShell> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           'Market updates, expert vet support, and finance resources in one place.',
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -635,7 +551,7 @@ class _HomeShellState extends State<HomeShell> {
             height: 1.4,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           children: [
@@ -758,6 +674,7 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     if (kIsWeb) {
+      final compactWeb = MediaQuery.of(context).size.width < 980;
       return Scaffold(
         body: Column(
           children: [
@@ -791,7 +708,9 @@ class _HomeShellState extends State<HomeShell> {
               child: _showWebFooter
                   ? KeyedSubtree(
                       key: const ValueKey('web-footer-visible'),
-                      child: _buildWebFooter(),
+                      child: compactWeb && _currentIndex != 0
+                          ? const SizedBox.shrink()
+                          : _buildWebFooter(),
                     )
                   : const SizedBox(key: ValueKey('web-footer-hidden')),
             ),
