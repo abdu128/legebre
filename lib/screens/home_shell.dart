@@ -114,6 +114,7 @@ class _HomeShellState extends State<HomeShell> {
   Future<void> _showCompactWebMenu({
     required AppState appState,
     required List<String> labels,
+    required BuildContext anchorContext,
   }) async {
     final navIcons = <IconData>[
       Icons.home_rounded,
@@ -149,166 +150,151 @@ class _HomeShellState extends State<HomeShell> {
       }
     }
 
-    await showModalBottomSheet<void>(
+    final button = anchorContext.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (button == null || overlay == null) {
+      return;
+    }
+
+    final buttonRect = Rect.fromPoints(
+      button.localToGlobal(Offset.zero, ancestor: overlay),
+      button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+    );
+
+    final selectedValue = await showMenu<String>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .12),
-                    blurRadius: 28,
-                    offset: const Offset(0, 14),
+      position: RelativeRect.fromRect(buttonRect, Offset.zero & overlay.size),
+      color: Colors.white,
+      elevation: 12,
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      constraints: const BoxConstraints(minWidth: 250, maxWidth: 290),
+      items: [
+        for (int index = 0; index < labels.length; index++)
+          PopupMenuItem<String>(
+            value: 'nav-$index',
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Builder(
+              builder: (context) {
+                final selected = _currentIndex == index;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? theme.colorScheme.primary.withValues(alpha: .1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: .12),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 9,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 8, 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          context.tr('Menu'),
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: context.tr('Close'),
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                    child: Column(
-                      children: List.generate(labels.length, (index) {
-                        final selected = _currentIndex == index;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Material(
+                  child: Row(
+                    children: [
+                      Icon(
+                        navIcons[index],
+                        size: 20,
+                        color: selected
+                            ? theme.colorScheme.primary
+                            : Colors.black87,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          labels[index],
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: selected
-                                ? theme.colorScheme.primary.withValues(
-                                    alpha: .1,
-                                  )
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () async {
-                                Navigator.of(sheetContext).pop();
-                                await handleSelection('nav-$index');
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 11,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      navIcons[index],
-                                      size: 20,
-                                      color: selected
-                                          ? theme.colorScheme.primary
-                                          : Colors.black87,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        labels[index],
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                              fontWeight: selected
-                                                  ? FontWeight.w700
-                                                  : FontWeight.w500,
-                                              color: selected
-                                                  ? theme.colorScheme.primary
-                                                  : Colors.black87,
-                                            ),
-                                      ),
-                                    ),
-                                    if (selected)
-                                      Icon(
-                                        Icons.check_circle_rounded,
-                                        size: 18,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                                ? theme.colorScheme.primary
+                                : Colors.black87,
                           ),
-                        );
-                      }),
-                    ),
+                        ),
+                      ),
+                      if (selected)
+                        Icon(
+                          Icons.check_rounded,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                    ],
                   ),
-                  if (_currentIndex == 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () async {
-                            Navigator.of(sheetContext).pop();
-                            await handleSelection('sell');
-                          },
-                          icon: const Icon(Icons.add_rounded),
-                          label: Text(context.tr('Sell livestock')),
-                        ),
-                      ),
-                    ),
-                  const Divider(height: 1),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          Navigator.of(sheetContext).pop();
-                          await handleSelection('auth');
-                        },
-                        icon: Icon(
-                          appState.isAuthenticated
-                              ? Icons.logout_rounded
-                              : Icons.login_rounded,
-                        ),
-                        label: Text(
-                          appState.isAuthenticated
-                              ? context.tr('Logout')
-                              : 'Sign in / Register',
-                        ),
-                      ),
+                );
+              },
+            ),
+          ),
+        if (_currentIndex == 0)
+          PopupMenuItem<String>(
+            value: 'sell',
+            enabled: true,
+            height: 56,
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.tr('Sell livestock'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-        );
-      },
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'auth',
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withValues(alpha: .16)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  appState.isAuthenticated
+                      ? Icons.logout_rounded
+                      : Icons.login_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  appState.isAuthenticated
+                      ? context.tr('Logout')
+                      : 'Sign in / Register',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
+
+    if (selectedValue != null) {
+      await handleSelection(selectedValue);
+    }
   }
 
   Widget _buildWebTopBar() {
@@ -388,22 +374,27 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                     ),
                     const Spacer(),
-                    Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      elevation: 1,
-                      shadowColor: Colors.black.withValues(alpha: .08),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () => _showCompactWebMenu(
-                          appState: appState,
-                          labels: labels,
-                        ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(10),
-                          child: Icon(Icons.menu_rounded),
-                        ),
-                      ),
+                    Builder(
+                      builder: (menuButtonContext) {
+                        return Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          elevation: 1,
+                          shadowColor: Colors.black.withValues(alpha: .08),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => _showCompactWebMenu(
+                              appState: appState,
+                              labels: labels,
+                              anchorContext: menuButtonContext,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Icon(Icons.menu_rounded),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

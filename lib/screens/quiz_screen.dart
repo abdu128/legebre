@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_localizations.dart';
+import '../services/api_exception.dart';
 import '../state/app_state.dart';
 
 class QuizScreen extends StatefulWidget {
@@ -31,6 +32,58 @@ class _QuizScreenState extends State<QuizScreen> {
   Map<String, dynamic>? _quizResults;
   Map<String, dynamic>? _quizMeta;
   bool _isSubmitting = false;
+
+  String _friendlyErrorMessage(
+    Object error, {
+    required String fallbackKey,
+  }) {
+    if (error is ApiException) {
+      final status = error.statusCode;
+      final rawMessage = error.message.trim();
+      final normalized = rawMessage.toLowerCase();
+
+      final isAuthError =
+          status == 401 ||
+          status == 403 ||
+          normalized.contains('log in') ||
+          normalized.contains('unauthor') ||
+          normalized.contains('token');
+
+      if (isAuthError) {
+        return context.tr('Please log in to continue');
+      }
+
+      final isNetworkLike =
+          normalized.contains('socket') ||
+          normalized.contains('failed host lookup') ||
+          normalized.contains('network') ||
+          normalized.contains('timed out') ||
+          normalized.contains('connection');
+
+      if (isNetworkLike) {
+        return context.tr('Please check your internet connection and try again.');
+      }
+
+      if (status == 404 || normalized.contains('not found')) {
+        return context.tr('This quiz is no longer available.');
+      }
+
+      if (rawMessage.isNotEmpty && !normalized.startsWith('unexpected error')) {
+        return rawMessage;
+      }
+    }
+
+    final generic = error.toString().toLowerCase();
+    if (generic.contains('socket') ||
+        generic.contains('failed host lookup') ||
+        generic.contains('network') ||
+        generic.contains('timed out') ||
+        generic.contains('connection')) {
+      return context.tr('Please check your internet connection and try again.');
+    }
+
+    return context.tr(fallbackKey);
+  }
 
   @override
   void initState() {
@@ -171,13 +224,16 @@ class _QuizScreenState extends State<QuizScreen> {
         _quizResults = result;
         _isSubmitting = false;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            '${context.tr('Unable to submit quiz')}: ${e.toString()}',
+            _friendlyErrorMessage(
+              error,
+              fallbackKey: 'Unable to submit quiz',
+            ),
           ),
         ),
       );
@@ -196,6 +252,10 @@ class _QuizScreenState extends State<QuizScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
+            final loadMessage = _friendlyErrorMessage(
+              snapshot.error!,
+              fallbackKey: 'Unable to load quiz',
+            );
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -203,6 +263,17 @@ class _QuizScreenState extends State<QuizScreen> {
                   const Icon(Icons.cloud_off, size: 48),
                   const SizedBox(height: 12),
                   Text(context.tr('Unable to load quiz')),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      loadMessage,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () {
