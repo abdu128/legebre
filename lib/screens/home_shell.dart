@@ -111,6 +111,206 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Future<void> _showCompactWebMenu({
+    required AppState appState,
+    required List<String> labels,
+  }) async {
+    final navIcons = <IconData>[
+      Icons.home_rounded,
+      Icons.favorite_rounded,
+      Icons.medical_services_rounded,
+      Icons.menu_book_rounded,
+    ];
+
+    final theme = Theme.of(context);
+
+    Future<void> handleSelection(String value) async {
+      if (value.startsWith('nav-')) {
+        final index = int.tryParse(value.split('-').last);
+        if (index != null) {
+          await _handleIndexTap(index);
+        }
+        return;
+      }
+
+      if (value == 'sell') {
+        await _handleFabPressed();
+        return;
+      }
+
+      if (value == 'auth') {
+        if (appState.isAuthenticated) {
+          context.read<AppState>().logout();
+        } else {
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
+        }
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 8, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          context.tr('Menu'),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: context.tr('Close'),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+                    child: Column(
+                      children: List.generate(labels.length, (index) {
+                        final selected = _currentIndex == index;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Material(
+                            color: selected
+                                ? theme.colorScheme.primary.withValues(
+                                    alpha: .1,
+                                  )
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () async {
+                                Navigator.of(sheetContext).pop();
+                                await handleSelection('nav-$index');
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 11,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      navIcons[index],
+                                      size: 20,
+                                      color: selected
+                                          ? theme.colorScheme.primary
+                                          : Colors.black87,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        labels[index],
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: selected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: selected
+                                                  ? theme.colorScheme.primary
+                                                  : Colors.black87,
+                                            ),
+                                      ),
+                                    ),
+                                    if (selected)
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 18,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                  if (_currentIndex == 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            Navigator.of(sheetContext).pop();
+                            await handleSelection('sell');
+                          },
+                          icon: const Icon(Icons.add_rounded),
+                          label: Text(context.tr('Sell livestock')),
+                        ),
+                      ),
+                    ),
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          Navigator.of(sheetContext).pop();
+                          await handleSelection('auth');
+                        },
+                        icon: Icon(
+                          appState.isAuthenticated
+                              ? Icons.logout_rounded
+                              : Icons.login_rounded,
+                        ),
+                        label: Text(
+                          appState.isAuthenticated
+                              ? context.tr('Logout')
+                              : 'Sign in / Register',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildWebTopBar() {
     final appState = context.watch<AppState>();
     final viewportWidth = MediaQuery.of(context).size.width;
@@ -188,74 +388,22 @@ class _HomeShellState extends State<HomeShell> {
                       ),
                     ),
                     const Spacer(),
-                    PopupMenuButton<String>(
-                      tooltip: context.tr('Menu'),
-                      onSelected: (value) async {
-                        if (value.startsWith('nav-')) {
-                          final index = int.tryParse(value.split('-').last);
-                          if (index != null) {
-                            await _handleIndexTap(index);
-                          }
-                          return;
-                        }
-                        if (value == 'sell') {
-                          await _handleFabPressed();
-                          return;
-                        }
-                        if (value == 'auth') {
-                          if (appState.isAuthenticated) {
-                            context.read<AppState>().logout();
-                          } else {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AuthScreen(),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      itemBuilder: (context) {
-                        final items = <PopupMenuEntry<String>>[];
-                        for (var i = 0; i < labels.length; i++) {
-                          items.add(
-                            PopupMenuItem<String>(
-                              value: 'nav-$i',
-                              child: Row(
-                                children: [
-                                  if (_currentIndex == i)
-                                    const Icon(Icons.check_rounded, size: 16)
-                                  else
-                                    const SizedBox(width: 16),
-                                  const SizedBox(width: 8),
-                                  Text(labels[i]),
-                                ],
-                              ),
-                            ),
-                          );
-                        }
-                        if (_currentIndex == 0) {
-                          items.add(const PopupMenuDivider());
-                          items.add(
-                            PopupMenuItem<String>(
-                              value: 'sell',
-                              child: Text(context.tr('Sell livestock')),
-                            ),
-                          );
-                        }
-                        items.add(const PopupMenuDivider());
-                        items.add(
-                          PopupMenuItem<String>(
-                            value: 'auth',
-                            child: Text(
-                              appState.isAuthenticated
-                                  ? context.tr('Logout')
-                                  : 'Sign in / Register',
-                            ),
-                          ),
-                        );
-                        return items;
-                      },
-                      icon: const Icon(Icons.menu_rounded),
+                    Material(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      elevation: 1,
+                      shadowColor: Colors.black.withValues(alpha: .08),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _showCompactWebMenu(
+                          appState: appState,
+                          labels: labels,
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(Icons.menu_rounded),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -313,8 +461,10 @@ class _HomeShellState extends State<HomeShell> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 980;
+          final denseDesktop = constraints.maxWidth >= 1280;
 
           if (compact) {
+            final textColor = Colors.white.withValues(alpha: .9);
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Column(
@@ -345,54 +495,109 @@ class _HomeShellState extends State<HomeShell> {
                         ),
                       ),
                       const Spacer(),
-                      TextButton(
+                      TextButton.icon(
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
+                            horizontal: 8,
                             vertical: 6,
                           ),
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        onPressed: _scrollHomeToTop,
-                        child: const Text('Back to top'),
+                        onPressed: () {
+                          setState(() {
+                            _compactFooterExpanded = !_compactFooterExpanded;
+                          });
+                        },
+                        icon: Icon(
+                          _compactFooterExpanded
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _compactFooterExpanded ? 'Show less' : 'Show more',
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr(
-                      'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
-                    ),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: .9),
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _buildFooterStat('5k+', 'Listings'),
-                      _buildFooterStat('1k+', 'Active buyers'),
-                      _buildFooterStat('99%', 'Verified sellers'),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Divider(color: Colors.white.withValues(alpha: .2), height: 1),
                   const SizedBox(height: 8),
-                  Text(
-                    'Copyright ${DateTime.now().year} Legebere',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: .82),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Copyright ${DateTime.now().year} Legebere',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: .82),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Built for modern livestock commerce',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: .82),
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            context.tr(
+                              'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
+                            ),
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: textColor,
+                              height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _buildFooterStat('5k+', 'Listings'),
+                              _buildFooterStat('1k+', 'Active buyers'),
+                              _buildFooterStat('99%', 'Verified sellers'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildCompactFooterChip('Browse', () async {
+                                await _handleIndexTap(0);
+                              }),
+                              _buildCompactFooterChip('Favorites', () async {
+                                await _handleIndexTap(1);
+                              }),
+                              _buildCompactFooterChip('Sell', () async {
+                                await _handleFabPressed();
+                              }),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Built for modern livestock commerce',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withValues(alpha: .82),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    crossFadeState: _compactFooterExpanded
+                        ? CrossFadeState.showSecond
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 220),
+                    sizeCurve: Curves.easeOutCubic,
+                    firstCurve: Curves.easeOut,
+                    secondCurve: Curves.easeIn,
                   ),
                 ],
               ),
@@ -400,23 +605,35 @@ class _HomeShellState extends State<HomeShell> {
           }
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: denseDesktop ? 20 : 24,
+              vertical: denseDesktop ? 8 : 12,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: _buildFooterBrand(theme)),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 2, child: _buildFooterQuickLinks(theme)),
-                    const SizedBox(width: 14),
-                    Expanded(flex: 2, child: _buildFooterHighlights(theme)),
+                    Expanded(
+                      flex: 3,
+                      child: _buildFooterBrand(theme, dense: denseDesktop),
+                    ),
+                    SizedBox(width: denseDesktop ? 10 : 14),
+                    Expanded(
+                      flex: 2,
+                      child: _buildFooterQuickLinks(theme, dense: denseDesktop),
+                    ),
+                    SizedBox(width: denseDesktop ? 10 : 14),
+                    Expanded(
+                      flex: 2,
+                      child: _buildFooterHighlights(theme, dense: denseDesktop),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: denseDesktop ? 8 : 10),
                 Divider(color: Colors.white.withValues(alpha: .2), height: 1),
-                const SizedBox(height: 8),
+                SizedBox(height: denseDesktop ? 6 : 8),
                 Wrap(
                   spacing: 14,
                   runSpacing: 8,
@@ -460,57 +677,68 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  Widget _buildFooterBrand(ThemeData theme) {
+  Widget _buildFooterBrand(ThemeData theme, {bool dense = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: dense ? 36 : 42,
+              height: dense ? 36 : 42,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .14),
                 borderRadius: BorderRadius.circular(12),
               ),
-              padding: const EdgeInsets.all(7),
+              padding: EdgeInsets.all(dense ? 6 : 7),
               child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
             ),
             const SizedBox(width: 10),
             Text(
               'Legebere',
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
+              style:
+                  (dense
+                          ? theme.textTheme.titleMedium
+                          : theme.textTheme.titleLarge)
+                      ?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: dense ? 6 : 8),
         Text(
           context.tr(
             'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
           ),
+          maxLines: dense ? 1 : null,
+          overflow: dense ? TextOverflow.ellipsis : TextOverflow.visible,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: Colors.white.withValues(alpha: .9),
-            height: 1.4,
+            height: dense ? 1.25 : 1.4,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: dense ? 8 : 10),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildFooterStat('5k+', 'Listings'),
-            _buildFooterStat('1k+', 'Active buyers'),
-            _buildFooterStat('99%', 'Verified sellers'),
-          ],
+          spacing: dense ? 6 : 8,
+          runSpacing: dense ? 6 : 8,
+          children: dense
+              ? [
+                  _buildFooterStat('5k+', 'Listings', compact: true),
+                  _buildFooterStat('99%', 'Verified sellers', compact: true),
+                ]
+              : [
+                  _buildFooterStat('5k+', 'Listings'),
+                  _buildFooterStat('1k+', 'Active buyers'),
+                  _buildFooterStat('99%', 'Verified sellers'),
+                ],
         ),
       ],
     );
   }
 
-  Widget _buildFooterQuickLinks(ThemeData theme) {
+  Widget _buildFooterQuickLinks(ThemeData theme, {bool dense = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -521,18 +749,27 @@ class _HomeShellState extends State<HomeShell> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 8),
-        _buildFooterLink('Browse listings', () => _handleIndexTap(0)),
-        _buildFooterLink('Back to top', _scrollHomeToTop),
-        _buildFooterLink('Favorites', () => _handleIndexTap(1)),
-        _buildFooterLink('Vet care', () => _handleIndexTap(2)),
-        _buildFooterLink('E-learning', () => _handleIndexTap(3)),
-        _buildFooterLink('Sell livestock', _handleFabPressed),
+        SizedBox(height: dense ? 6 : 8),
+        _buildFooterLink(
+          'Browse listings',
+          () => _handleIndexTap(0),
+          dense: dense,
+        ),
+        _buildFooterLink('Back to top', _scrollHomeToTop, dense: dense),
+        _buildFooterLink('Favorites', () => _handleIndexTap(1), dense: dense),
+        _buildFooterLink('Vet care', () => _handleIndexTap(2), dense: dense),
+        if (!dense)
+          _buildFooterLink(
+            'E-learning',
+            () => _handleIndexTap(3),
+            dense: dense,
+          ),
+        _buildFooterLink('Sell livestock', _handleFabPressed, dense: dense),
       ],
     );
   }
 
-  Widget _buildFooterHighlights(ThemeData theme) {
+  Widget _buildFooterHighlights(ThemeData theme, {bool dense = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -543,15 +780,16 @@ class _HomeShellState extends State<HomeShell> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Market updates, expert vet support, and finance resources in one place.',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: Colors.white.withValues(alpha: .9),
-            height: 1.4,
+        SizedBox(height: dense ? 6 : 8),
+        if (!dense)
+          Text(
+            'Market updates, expert vet support, and finance resources in one place.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: .9),
+              height: 1.4,
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
+        SizedBox(height: dense ? 6 : 10),
         Wrap(
           spacing: 8,
           children: [
@@ -564,30 +802,37 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  Widget _buildFooterLink(String label, VoidCallback onTap) {
+  Widget _buildFooterLink(
+    String label,
+    VoidCallback onTap, {
+    bool dense = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: EdgeInsets.only(bottom: dense ? 0 : 2),
       child: TextButton.icon(
         style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+          padding: EdgeInsets.symmetric(horizontal: 0, vertical: dense ? 4 : 6),
           foregroundColor: Colors.white.withValues(alpha: .95),
-          minimumSize: const Size(0, 36),
+          minimumSize: Size(0, dense ? 30 : 36),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           alignment: Alignment.centerLeft,
         ),
         onPressed: onTap,
-        icon: const Icon(Icons.arrow_right_alt_rounded, size: 18),
+        icon: Icon(Icons.arrow_right_alt_rounded, size: dense ? 16 : 18),
         label: Text(label),
       ),
     );
   }
 
-  Widget _buildFooterStat(String value, String label) {
+  Widget _buildFooterStat(String value, String label, {bool compact = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 6 : 8,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(compact ? 10 : 12),
         border: Border.all(color: Colors.white.withValues(alpha: .15)),
       ),
       child: Column(
@@ -605,7 +850,7 @@ class _HomeShellState extends State<HomeShell> {
             label,
             style: TextStyle(
               color: Colors.white.withValues(alpha: .85),
-              fontSize: 12,
+              fontSize: compact ? 11 : 12,
             ),
           ),
         ],

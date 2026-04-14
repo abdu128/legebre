@@ -315,6 +315,12 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTopAdsBanner(ThemeData theme) {
     final ads = _topAds;
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final wideWeb = kIsWeb && viewportWidth >= 1280;
+    final bannerHeight = wideWeb ? 148.0 : 168.0;
+    final bannerRadius = wideWeb ? 20.0 : 24.0;
+    final bannerPadding = wideWeb ? 14.0 : 18.0;
+    final maxBannerWidth = wideWeb ? 1180.0 : double.infinity;
 
     if (ads.isEmpty) {
       return Container(
@@ -363,97 +369,105 @@ class HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(bottom: 18),
       child: Column(
         children: [
-          SizedBox(
-            height: 168,
-            child: PageView.builder(
-              controller: _adsPageController,
-              itemCount: ads.length,
-              onPageChanged: (index) {
-                if (!mounted) return;
-                setState(() => _activeAdIndex = index);
-              },
-              itemBuilder: (context, index) {
-                final ad = ads[index];
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: index == ads.length - 1 ? 0 : 10,
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () => _openAdTarget(ad),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        image: DecorationImage(
-                          image: NetworkImage(ad.imageUrl),
-                          fit: BoxFit.cover,
-                        ),
+          Align(
+            alignment: Alignment.center,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxBannerWidth),
+              child: SizedBox(
+                height: bannerHeight,
+                child: PageView.builder(
+                  controller: _adsPageController,
+                  itemCount: ads.length,
+                  onPageChanged: (index) {
+                    if (!mounted) return;
+                    setState(() => _activeAdIndex = index);
+                  },
+                  itemBuilder: (context, index) {
+                    final ad = ads[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        right: index == ads.length - 1 ? 0 : 10,
                       ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.black.withValues(alpha: .40),
-                              AppColors.primaryGreen.withValues(alpha: .45),
-                            ],
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(bannerRadius),
+                        onTap: () => _openAdTarget(ad),
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(bannerRadius),
+                            image: DecorationImage(
+                              image: NetworkImage(ad.imageUrl),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(bannerRadius),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.black.withValues(alpha: .40),
+                                  AppColors.primaryGreen.withValues(alpha: .45),
+                                ],
+                              ),
+                            ),
+                            padding: EdgeInsets.all(bannerPadding),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: wideWeb ? 8 : 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: .18),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(
+                                        alpha: .35,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Sponsored',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: wideWeb ? 10 : 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  ad.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  (ad.subtitle?.trim().isNotEmpty ?? false)
+                                      ? ad.subtitle!.trim()
+                                      : context.tr('Tap to view details'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.white.withValues(alpha: .9),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        padding: const EdgeInsets.all(18),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .18),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: .35),
-                                ),
-                              ),
-                              child: const Text(
-                                'Sponsored',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              ad.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              (ad.subtitle?.trim().isNotEmpty ?? false)
-                                  ? ad.subtitle!.trim()
-                                  : context.tr('Tap to view details'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: .9),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -483,6 +497,8 @@ class HomeScreenState extends State<HomeScreen> {
   Widget _buildMidFeedAds(ThemeData theme) {
     final ads = _midAds;
     if (ads.isEmpty) return const SizedBox.shrink();
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final wideWeb = kIsWeb && viewportWidth >= 1280;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,7 +512,7 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 168,
+          height: wideWeb ? 148 : 168,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: ads.length,
@@ -504,7 +520,7 @@ class HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final ad = ads[index];
               return SizedBox(
-                width: 292,
+                width: wideWeb ? 252 : 292,
                 child: Material(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(24),

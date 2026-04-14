@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
+import '../widgets/youtube_embed_preview_stub.dart'
+    if (dart.library.html) '../widgets/youtube_embed_preview_web.dart';
 import 'quiz_screen.dart';
 
 class CourseContentScreen extends StatefulWidget {
@@ -27,6 +31,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
   List<Map<String, dynamic>> _textLessons = const [];
   List<Map<String, dynamic>> _quizzes = const [];
   int? _playingVideoIndex;
+  final Map<int, YoutubePlayerController> _youtubeControllers = {};
   Set<int> _completedQuizzes = {};
   bool _isCourseCompleted = false;
 
@@ -122,16 +127,24 @@ class _CourseContentScreenState extends State<CourseContentScreen>
     });
   }
 
-  String? _extractVideoId(String url) {
-    try {
-      final uri = Uri.parse(url);
-      if (uri.host.contains('youtube.com')) {
-        return uri.queryParameters['v'];
-      } else if (uri.host.contains('youtu.be')) {
-        return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
-      }
-    } catch (_) {}
-    return null;
+  String? _extractVideoId(String url) => YoutubePlayer.convertUrlToId(url);
+
+  Future<void> _openVideoUrl(String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.tr('Could not open video'))),
+      );
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
+    if (!opened && mounted) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(context.tr('Could not open video'))),
+      );
+    }
   }
 
   void _toggleVideo(int index) {
@@ -142,6 +155,29 @@ class _CourseContentScreenState extends State<CourseContentScreen>
         _playingVideoIndex = index;
       }
     });
+  }
+
+  YoutubePlayerController _controllerFor(int index, String videoId) {
+    final existing = _youtubeControllers[index];
+    if (existing != null) {
+      return existing;
+    }
+
+    final created = YoutubePlayerController(
+      initialVideoId: videoId,
+      flags: const YoutubePlayerFlags(autoPlay: true, mute: false),
+    );
+    _youtubeControllers[index] = created;
+    return created;
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _youtubeControllers.values) {
+      controller.dispose();
+    }
+    _youtubeControllers.clear();
+    super.dispose();
   }
 
   @override
@@ -231,8 +267,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                 child: Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color:
-                                        theme.colorScheme.onPrimaryContainer,
+                                    color: theme.colorScheme.onPrimaryContainer,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
                                   ),
@@ -252,7 +287,8 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                 ),
                             ],
                           ),
-                          if (description != null && description.isNotEmpty) ...[
+                          if (description != null &&
+                              description.isNotEmpty) ...[
                             const SizedBox(height: 10),
                             Text(
                               description,
@@ -292,6 +328,8 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                       url = 'https://$url';
                     }
                     final videoId = url != null ? _extractVideoId(url) : null;
+                    final isYouTube = videoId != null;
+                    final canInlinePlay = isYouTube;
                     final isPlaying = _playingVideoIndex == index;
 
                     return Padding(
@@ -301,24 +339,31 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: isPlaying && videoId != null
+                            child: isPlaying && canInlinePlay
                                 ? AspectRatio(
                                     aspectRatio: 16 / 9,
-                                    child: YoutubePlayer(
-                                      controller: YoutubePlayerController(
-                                        initialVideoId: videoId,
-                                        flags: const YoutubePlayerFlags(
-                                          autoPlay: true,
-                                          mute: false,
-                                        ),
-                                      ),
-                                      showVideoProgressIndicator: true,
-                                      progressIndicatorColor:
-                                          theme.colorScheme.primary,
-                                    ),
+                                    child: kIsWeb
+                                        ? YouTubeEmbedPreview(videoId: videoId)
+                                        : YoutubePlayer(
+                                            controller: _controllerFor(
+                                              index,
+                                              videoId,
+                                            ),
+                                            showVideoProgressIndicator: true,
+                                            progressIndicatorColor:
+                                                theme.colorScheme.primary,
+                                          ),
                                   )
                                 : InkWell(
-                                    onTap: () => _toggleVideo(index),
+                                    onTap: () {
+                                      if (canInlinePlay) {
+                                        _toggleVideo(index);
+                                        return;
+                                      }
+                                      if (url != null && url.isNotEmpty) {
+                                        _openVideoUrl(url);
+                                      }
+                                    },
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
@@ -355,6 +400,32 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                             color: Colors.white,
                                           ),
                                         ),
+                                        if (!canInlinePlay)
+                                          Positioned(
+                                            left: 10,
+                                            right: 10,
+                                            bottom: 10,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black87,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                context.tr('Tap to open video'),
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         if (duration != null &&
                                             duration.isNotEmpty)
                                           Positioned(
@@ -395,7 +466,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (isPlaying)
+                              if (isPlaying && canInlinePlay)
                                 IconButton(
                                   icon: const Icon(Icons.close),
                                   onPressed: () => _toggleVideo(index),
