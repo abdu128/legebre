@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -547,13 +548,145 @@ class _HomeShellState extends State<HomeShell> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
+                          _buildCompactFooterInfoRow(
+                            icon: Icons.location_on_outlined,
+                            text:
+                                'Addis Ababa, Ethiopia',
+                            theme: theme,
+                          ),
+                          const SizedBox(height: 6),
+                          _buildCompactFooterInfoRow(
+                            icon: Icons.phone_outlined,
+                            text: '+251 90 479 5093',
+                            theme: theme,
+                          ),
+                          const SizedBox(height: 6),
+                          _buildCompactFooterInfoRow(
+                            icon: Icons.mail_outline_rounded,
+                            text: 'support@legebere.com',
+                            theme: theme,
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFooterStat('5k+', 'Listings'),
-                              _buildFooterStat('1k+', 'Active buyers'),
-                              _buildFooterStat('99%', 'Verified sellers'),
+                              Expanded(
+                                child: _buildCompactFooterColumn(
+                                  title: 'My account',
+                                  items: [
+                                    ('Manage account', () async {
+                                      final appState = context.read<AppState>();
+                                      if (!appState.isAuthenticated) {
+                                        await Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => const AuthScreen(),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Profile screen coming soon'),
+                                        ),
+                                      );
+                                    }),
+                                    ('Products', () async {
+                                      await _handleIndexTap(0);
+                                    }),
+                                  ],
+                                  theme: theme,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildCompactFooterColumn(
+                                  title: 'Helps',
+                                  items: [
+                                    ('Contact us', () async {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Contact support@legebere.com'),
+                                        ),
+                                      );
+                                    }),
+                                    ('FAQs', () async {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('FAQs coming soon')),
+                                      );
+                                    }),
+                                    ('Privacy policy', () async {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Privacy policy coming soon'),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  theme: theme,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildCompactFooterColumn(
+                                  title: 'Other',
+                                  items: [
+                                    ('About', () async {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('About page coming soon')),
+                                      );
+                                    }),
+                                    ('Login', () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const AuthScreen(),
+                                        ),
+                                      );
+                                    }),
+                                    ('Register', () async {
+                                      await Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const AuthScreen(),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                  theme: theme,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _buildCompactFooterSocialButton(
+                                icon: FontAwesomeIcons.facebookF,
+                                label: 'Facebook',
+                                onTap: () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Facebook coming soon')),
+                                  );
+                                },
+                              ),
+                              _buildCompactFooterSocialButton(
+                                icon: FontAwesomeIcons.linkedinIn,
+                                label: 'LinkedIn',
+                                onTap: () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('LinkedIn coming soon')),
+                                  );
+                                },
+                              ),
+                              _buildCompactFooterSocialButton(
+                                icon: FontAwesomeIcons.instagram,
+                                label: 'Instagram',
+                                onTap: () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Instagram coming soon')),
+                                  );
+                                },
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -561,18 +694,29 @@ class _HomeShellState extends State<HomeShell> {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
-                              _buildCompactFooterChip('Browse', () async {
-                                await _handleIndexTap(0);
-                              }),
-                              _buildCompactFooterChip('Favorites', () async {
-                                await _handleIndexTap(1);
-                              }),
-                              _buildCompactFooterChip('Sell', () async {
-                                await _handleFabPressed();
-                              }),
+                              _buildCompactStoreBadge(
+                                icon: FontAwesomeIcons.apple,
+                                topText: 'Download on the',
+                                bottomText: 'App Store',
+                                onTap: () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('App Store coming soon')),
+                                  );
+                                },
+                              ),
+                              _buildCompactStoreBadge(
+                                icon: FontAwesomeIcons.googlePlay,
+                                topText: 'Get it on',
+                                bottomText: 'Google Play',
+                                onTap: () async {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Google Play coming soon')),
+                                  );
+                                },
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             'Built for modern livestock commerce',
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -653,18 +797,154 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  Widget _buildCompactFooterChip(String label, Future<void> Function() onTap) {
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        side: BorderSide(color: Colors.white.withValues(alpha: .35)),
-        backgroundColor: Colors.white.withValues(alpha: .06),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _buildCompactFooterSocialButton({
+    required IconData icon,
+    required String label,
+    required Future<void> Function() onTap,
+  }) {
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          onTap();
+        },
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: .12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: .3)),
+          ),
+          child: Center(
+            child: FaIcon(
+              icon,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ),
       ),
-      onPressed: () {
+    );
+  }
+
+  Widget _buildCompactStoreBadge({
+    required IconData icon,
+    required String topText,
+    required String bottomText,
+    required Future<void> Function() onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
         onTap();
       },
-      child: Text(label),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 158),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: .22)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FaIcon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  topText,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    height: 1.1,
+                  ),
+                ),
+                Text(
+                  bottomText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactFooterInfoRow({
+    required IconData icon,
+    required String text,
+    required ThemeData theme,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: Colors.white.withValues(alpha: .86)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: .88),
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactFooterColumn({
+    required String title,
+    required List<(String, Future<void> Function())> items,
+    required ThemeData theme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        ...items.map(
+          (entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 3),
+                minimumSize: const Size(0, 24),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                alignment: Alignment.centerLeft,
+                foregroundColor: Colors.white.withValues(alpha: .9),
+              ),
+              onPressed: () {
+                entry.$2();
+              },
+              child: Text(
+                entry.$1,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -725,37 +1005,151 @@ class _HomeShellState extends State<HomeShell> {
                   _buildFooterStat('99%', 'Verified sellers'),
                 ],
         ),
+        if (!dense) ...[
+          const SizedBox(height: 10),
+          _buildCompactFooterInfoRow(
+            icon: Icons.location_on_outlined,
+            text:
+                'Addis Ababa, Ethiopia • Shimex Estate, Lugbe, FCT Nigeria',
+            theme: theme,
+          ),
+          const SizedBox(height: 6),
+          _buildCompactFooterInfoRow(
+            icon: Icons.phone_outlined,
+            text: '+251 90 479 5093 • +234 8108597000',
+            theme: theme,
+          ),
+          const SizedBox(height: 6),
+          _buildCompactFooterInfoRow(
+            icon: Icons.mail_outline_rounded,
+            text: 'support@legebere.com',
+            theme: theme,
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildFooterQuickLinks(ThemeData theme, {bool dense = false}) {
+    if (dense) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Quick links',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: dense ? 6 : 8),
+          _buildFooterLink(
+            'Browse listings',
+            () => _handleIndexTap(0),
+            dense: dense,
+          ),
+          _buildFooterLink('Back to top', _scrollHomeToTop, dense: dense),
+          _buildFooterLink(
+            'Favorites',
+            () => _handleIndexTap(1),
+            dense: dense,
+          ),
+          _buildFooterLink('Vet care', () => _handleIndexTap(2), dense: dense),
+          _buildFooterLink('Sell livestock', _handleFabPressed, dense: dense),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quick links',
+          'Useful links',
           style: theme.textTheme.titleMedium?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w700,
           ),
         ),
-        SizedBox(height: dense ? 6 : 8),
-        _buildFooterLink(
-          'Browse listings',
-          () => _handleIndexTap(0),
-          dense: dense,
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildFooterDesktopLinkColumn(
+                title: 'My account',
+                items: [
+                  ('Manage account', () {
+                    final appState = context.read<AppState>();
+                    if (!appState.isAuthenticated) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AuthScreen()),
+                      );
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Profile screen coming soon')),
+                    );
+                  }),
+                  ('Products', () => _handleIndexTap(0)),
+                ],
+                theme: theme,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildFooterDesktopLinkColumn(
+                title: 'Helps',
+                items: [
+                  ('Contact us', () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Contact support@legebere.com')),
+                    );
+                  }),
+                  ('FAQs', () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('FAQs coming soon')),
+                    );
+                  }),
+                  ('Terms', () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Terms coming soon')),
+                    );
+                  }),
+                  ('Privacy policy', () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Privacy policy coming soon')),
+                    );
+                  }),
+                ],
+                theme: theme,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildFooterDesktopLinkColumn(
+                title: 'Other',
+                items: [
+                  ('About', () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('About page coming soon')),
+                    );
+                  }),
+                  ('Login', () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    );
+                  }),
+                  ('Register', () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    );
+                  }),
+                ],
+                theme: theme,
+              ),
+            ),
+          ],
         ),
-        _buildFooterLink('Back to top', _scrollHomeToTop, dense: dense),
-        _buildFooterLink('Favorites', () => _handleIndexTap(1), dense: dense),
-        _buildFooterLink('Vet care', () => _handleIndexTap(2), dense: dense),
-        if (!dense)
-          _buildFooterLink(
-            'E-learning',
-            () => _handleIndexTap(3),
-            dense: dense,
-          ),
-        _buildFooterLink('Sell livestock', _handleFabPressed, dense: dense),
       ],
     );
   }
@@ -783,11 +1177,103 @@ class _HomeShellState extends State<HomeShell> {
         SizedBox(height: dense ? 6 : 10),
         Wrap(
           spacing: 8,
+          runSpacing: 8,
           children: [
-            _buildSocialButton(Icons.public_rounded, 'Website'),
-            _buildSocialButton(Icons.forum_rounded, 'Community'),
-            _buildSocialButton(Icons.mail_outline_rounded, 'Contact'),
+            _buildCompactFooterSocialButton(
+              icon: FontAwesomeIcons.facebookF,
+              label: 'Facebook',
+              onTap: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Facebook coming soon')),
+                );
+              },
+            ),
+            _buildCompactFooterSocialButton(
+              icon: FontAwesomeIcons.linkedinIn,
+              label: 'LinkedIn',
+              onTap: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('LinkedIn coming soon')),
+                );
+              },
+            ),
+            _buildCompactFooterSocialButton(
+              icon: FontAwesomeIcons.instagram,
+              label: 'Instagram',
+              onTap: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Instagram coming soon')),
+                );
+              },
+            ),
           ],
+        ),
+        if (!dense) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildCompactStoreBadge(
+                icon: FontAwesomeIcons.apple,
+                topText: 'Download on the',
+                bottomText: 'App Store',
+                onTap: () async {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('App Store coming soon')),
+                  );
+                },
+              ),
+              _buildCompactStoreBadge(
+                icon: FontAwesomeIcons.googlePlay,
+                topText: 'Get it on',
+                bottomText: 'Google Play',
+                onTap: () async {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Google Play coming soon')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFooterDesktopLinkColumn({
+    required String title,
+    required List<(String, VoidCallback)> items,
+    required ThemeData theme,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        ...items.map(
+          (entry) => TextButton(
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+              minimumSize: const Size(0, 24),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              alignment: Alignment.centerLeft,
+              foregroundColor: Colors.white.withValues(alpha: .9),
+            ),
+            onPressed: entry.$2,
+            child: Text(
+              entry.$1,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
         ),
       ],
     );
@@ -846,23 +1332,6 @@ class _HomeShellState extends State<HomeShell> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSocialButton(IconData icon, String label) {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(
-        foregroundColor: Colors.white,
-        side: BorderSide(color: Colors.white.withValues(alpha: .35)),
-        backgroundColor: Colors.white.withValues(alpha: .07),
-      ),
-      onPressed: () {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$label coming soon')));
-      },
-      icon: Icon(icon, size: 16),
-      label: Text(label),
     );
   }
 

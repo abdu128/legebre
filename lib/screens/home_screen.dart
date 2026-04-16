@@ -399,69 +399,6 @@ class HomeScreenState extends State<HomeScreen> {
                               fit: BoxFit.cover,
                             ),
                           ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(bannerRadius),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.black.withValues(alpha: .40),
-                                  AppColors.primaryGreen.withValues(alpha: .45),
-                                ],
-                              ),
-                            ),
-                            padding: EdgeInsets.all(bannerPadding),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: wideWeb ? 8 : 10,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: .18),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: .35,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Sponsored',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: wideWeb ? 10 : 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  ad.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  (ad.subtitle?.trim().isNotEmpty ?? false)
-                                      ? ad.subtitle!.trim()
-                                      : context.tr('Tap to view details'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: .9),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
                       ),
                     );
@@ -500,110 +437,36 @@ class HomeScreenState extends State<HomeScreen> {
     final viewportWidth = MediaQuery.of(context).size.width;
     final wideWeb = kIsWeb && viewportWidth >= 1280;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Sponsored picks',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: AppColors.deepBrown,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: wideWeb ? 148 : 168,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: ads.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final ad = ads[index];
-              return SizedBox(
-                width: wideWeb ? 252 : 292,
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(24),
-                  child: InkWell(
+    return SizedBox(
+      height: wideWeb ? 148 : 168,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: ads.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final ad = ads[index];
+          return SizedBox(
+            width: wideWeb ? 252 : 292,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(24),
+                onTap: () => _openAdTarget(ad),
+                child: Ink(
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    onTap: () => _openAdTarget(ad),
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        image: DecorationImage(
-                          image: NetworkImage(ad.imageUrl),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(24),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.black.withValues(alpha: .42),
-                              AppColors.primaryGreen.withValues(alpha: .42),
-                            ],
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: .18),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: .35),
-                                ),
-                              ),
-                              child: const Text(
-                                'Sponsored',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              ad.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              (ad.subtitle?.trim().isNotEmpty ?? false)
-                                  ? ad.subtitle!.trim()
-                                  : ad.targetType,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.white.withValues(alpha: .9),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    image: DecorationImage(
+                      image: NetworkImage(ad.imageUrl),
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-        ),
-      ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
