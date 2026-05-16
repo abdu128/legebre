@@ -9,6 +9,7 @@ import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
 import '../models/home_ad.dart';
+import '../screens/auth_screen.dart';
 import '../screens/feed_detail_screen.dart';
 import '../screens/listing_detail_screen.dart';
 import '../screens/vet_drug_detail_screen.dart';
@@ -54,6 +55,15 @@ class HomeScreenState extends State<HomeScreen> {
   bool _onlyVerifiedSellers = false;
   int _activeAdIndex = 0;
 
+  int _topBannerSlideCount({
+    required bool isAuthenticated,
+    required int adCount,
+  }) {
+    final showDefaultPromo = adCount == 0 || !isAuthenticated;
+    final showAuthPromo = !isAuthenticated;
+    return adCount + (showDefaultPromo ? 1 : 0) + (showAuthPromo ? 1 : 0);
+  }
+
   static const List<_AnimalCategory> _categoryOptions = [
     _AnimalCategory(labelKey: 'Cattle', value: 'CATTLE'),
     _AnimalCategory(labelKey: 'Goat', value: 'GOAT'),
@@ -84,12 +94,18 @@ class HomeScreenState extends State<HomeScreen> {
   void _startAdsAutoPlay() {
     _adsAutoPlayTimer?.cancel();
     _adsAutoPlayTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      final ads = _topAds;
-      if (ads.length <= 1 || !_adsPageController.hasClients) {
+      final isAuthenticated = context.read<AppState>().isAuthenticated;
+      final adCount = _topAds.length;
+      final totalSlides = _topBannerSlideCount(
+        isAuthenticated: isAuthenticated,
+        adCount: adCount,
+      );
+
+      if (totalSlides <= 1 || !_adsPageController.hasClients) {
         return;
       }
 
-      final nextPage = (_activeAdIndex + 1) % ads.length;
+      final nextPage = (_activeAdIndex + 1) % totalSlides;
       _adsPageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 450),
@@ -246,12 +262,17 @@ class HomeScreenState extends State<HomeScreen> {
       final api = context.read<AppState>().api;
       final fetched = await api.getHomeAds(limit: 10);
       if (!mounted) return;
+      final isAuthenticated = context.read<AppState>().isAuthenticated;
 
       setState(() {
         _homeAds
           ..clear()
           ..addAll(fetched);
-        if (_activeAdIndex >= _topAds.length) {
+        final totalSlides = _topBannerSlideCount(
+          isAuthenticated: isAuthenticated,
+          adCount: _topAds.length,
+        );
+        if (_activeAdIndex >= totalSlides) {
           _activeAdIndex = 0;
         }
       });
@@ -315,6 +336,13 @@ class HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTopAdsBanner(ThemeData theme) {
     final ads = _topAds;
+    final isAuthenticated = context.watch<AppState>().isAuthenticated;
+    final showDefaultPromo = ads.isEmpty || !isAuthenticated;
+    final showAuthPromo = !isAuthenticated;
+    final totalSlides = _topBannerSlideCount(
+      isAuthenticated: isAuthenticated,
+      adCount: ads.length,
+    );
     final viewportWidth = MediaQuery.of(context).size.width;
     final wideWeb = kIsWeb && viewportWidth >= 1280;
     final bannerHeight = wideWeb ? 148.0 : 168.0;
@@ -322,51 +350,12 @@ class HomeScreenState extends State<HomeScreen> {
     final bannerPadding = wideWeb ? 14.0 : 18.0;
     final maxBannerWidth = wideWeb ? 1180.0 : double.infinity;
 
-    if (ads.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 18),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(26),
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primaryGreen.withValues(alpha: .92),
-              AppColors.secondaryGreen.withValues(alpha: .88),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              context.tr('Find quality livestock'),
-              style: theme.textTheme.headlineSmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              context.tr(
-                'Browse verified listings, compare prices, and connect with trusted sellers.',
-              ),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: .92),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_activeAdIndex >= ads.length) {
+    if (_activeAdIndex >= totalSlides) {
       _activeAdIndex = 0;
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           Align(
@@ -377,40 +366,63 @@ class HomeScreenState extends State<HomeScreen> {
                 height: bannerHeight,
                 child: PageView.builder(
                   controller: _adsPageController,
-                  itemCount: ads.length,
+                  itemCount: totalSlides,
                   onPageChanged: (index) {
                     if (!mounted) return;
                     setState(() => _activeAdIndex = index);
                   },
                   itemBuilder: (context, index) {
-                    final ad = ads[index];
+                    final adStartIndex = showDefaultPromo ? 1 : 0;
+                    final adEndIndex = adStartIndex + ads.length;
+                    final isDefaultPromoSlide = showDefaultPromo && index == 0;
+                    final isAdSlide = index >= adStartIndex && index < adEndIndex;
+                    final isAuthSlide = showAuthPromo && index == adEndIndex;
+
                     return Padding(
                       padding: EdgeInsets.only(
-                        right: index == ads.length - 1 ? 0 : 10,
+                        right: index == totalSlides - 1 ? 0 : 10,
                       ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(bannerRadius),
-                        onTap: () => _openAdTarget(ad),
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(bannerRadius),
-                            image: DecorationImage(
-                              image: NetworkImage(ad.imageUrl),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
+                      child: isDefaultPromoSlide
+                          ? _buildDefaultPromoBannerCard(
+                              theme: theme,
+                              bannerRadius: bannerRadius,
+                              bannerPadding: bannerPadding,
+                            )
+                          : isAuthSlide
+                          ? _buildAuthPromoBannerCard(
+                              theme: theme,
+                              bannerRadius: bannerRadius,
+                              bannerPadding: bannerPadding,
+                            )
+                          : isAdSlide
+                          ? InkWell(
+                              borderRadius: BorderRadius.circular(bannerRadius),
+                              onTap: () => _openAdTarget(ads[index - adStartIndex]),
+                              child: Ink(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(
+                                    bannerRadius,
+                                  ),
+                                  image: DecorationImage(
+                                    image: NetworkImage(
+                                      ads[index - adStartIndex].imageUrl,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     );
                   },
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(ads.length, (index) {
+            children: List.generate(totalSlides, (index) {
               final selected = index == _activeAdIndex;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
@@ -425,6 +437,125 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
               );
             }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDefaultPromoBannerCard({
+    required ThemeData theme,
+    required double bannerRadius,
+    required double bannerPadding,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(bannerRadius),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryGreen.withValues(alpha: .92),
+            AppColors.secondaryGreen.withValues(alpha: .88),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: EdgeInsets.all(bannerPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr('Find quality livestock'),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            context.tr(
+              'Browse verified listings, compare prices, and connect with trusted sellers.',
+            ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: .92),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthPromoBannerCard({
+    required ThemeData theme,
+    required double bannerRadius,
+    required double bannerPadding,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(bannerRadius),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF0D47A1).withValues(alpha: .94),
+            const Color(0xFF1E88E5).withValues(alpha: .9),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: EdgeInsets.all(bannerPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr('Sign in for a better experience'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            context.tr(
+              'Save favorites, enroll in courses, and track your activity across devices.',
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withValues(alpha: .92),
+            ),
+          ),
+          const Spacer(),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primaryGreen,
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  );
+                },
+                child: Text(context.tr('Login')),
+              ),
+              OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: Colors.white.withValues(alpha: .8)),
+                ),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+                  );
+                },
+                child: Text(context.tr('Register')),
+              ),
+            ],
           ),
         ],
       ),
@@ -863,7 +994,7 @@ class HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   SliverToBoxAdapter(child: _buildTopAdsBanner(theme)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 20)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
                   SliverToBoxAdapter(
                     child: Material(
                       color: Colors.white,

@@ -165,6 +165,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> requestLoginOtp({required String phone}) async {
+    await _api.requestLoginOtp(phone: phone);
+  }
+
+  Future<void> verifyLoginOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final (user, _) = await _api.verifyLoginOtp(phone: phone, otp: otp);
+    _user = user;
+    _status = AppStatus.authenticated;
+    await _registerDeviceTokenIfNeeded();
+    notifyListeners();
+  }
+
   Future<void> register({
     required String name,
     required String password,

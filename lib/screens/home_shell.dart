@@ -112,6 +112,65 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Future<void> _openLanguagePicker() async {
+    final appState = context.read<AppState>();
+    final currentCode = appState.locale.languageCode;
+
+    final selectedCode = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('Select language'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...AppLocalizations.supportedLocales.map((locale) {
+                  final label = switch (locale.languageCode) {
+                    'am' => context.tr('Amharic'),
+                    'om' => context.tr('Afan Oromo'),
+                    'so' => context.tr('Somali'),
+                    _ => context.tr('English'),
+                  };
+                  return RadioListTile<String>(
+                    value: locale.languageCode,
+                    groupValue: currentCode,
+                    onChanged: (value) {
+                      Navigator.of(sheetContext).pop(value);
+                    },
+                    title: Text(label),
+                    contentPadding: EdgeInsets.zero,
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selectedCode != null && selectedCode != currentCode) {
+      await appState.setLocale(Locale(selectedCode));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('Language updated'))));
+      }
+    }
+  }
+
   Future<void> _showCompactWebMenu({
     required AppState appState,
     required List<String> labels,
@@ -137,6 +196,11 @@ class _HomeShellState extends State<HomeShell> {
 
       if (value == 'sell') {
         await _handleFabPressed();
+        return;
+      }
+
+      if (value == 'language') {
+        await _openLanguagePicker();
         return;
       }
 
@@ -255,6 +319,35 @@ class _HomeShellState extends State<HomeShell> {
               ),
             ),
           ),
+        PopupMenuItem<String>(
+          value: 'language',
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withValues(alpha: .12)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.language_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  context.tr('Change language'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const PopupMenuDivider(),
         PopupMenuItem<String>(
           value: 'auth',

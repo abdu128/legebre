@@ -1,4 +1,4 @@
-package com.example.legebre
+package com.legebere.marketplace
 
 import io.flutter.embedding.android.FlutterActivity
 
