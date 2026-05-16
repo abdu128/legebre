@@ -130,7 +130,7 @@ class LegebreApi {
     _client.cacheToken(token);
   }
 
-  Future<(AppUser user, String token)> register({
+  Future<void> register({
     required String name,
     String? email,
     String? phone,
@@ -154,11 +154,11 @@ class LegebreApi {
       body: body,
       authorized: false,
     );
-    final token = response['token']?.toString();
-    if (token == null) throw ApiException('Missing token from server');
-    await _persistToken(token);
-    final user = AppUser.fromJson(response['user'] as Map<String, dynamic>);
-    return (user, token);
+    if (response != null && response is Map<String, dynamic>) {
+      if (response['message'] != null) {
+        return;
+      }
+    }
   }
 
   Future<(AppUser user, String token)> login({
@@ -203,19 +203,19 @@ class LegebreApi {
     return (user, token);
   }
 
-  Future<void> requestLoginOtp({required String phone}) async {
+  Future<void> requestRegistrationOtp({required String phone}) async {
     final trimmed = phone.trim();
     if (trimmed.isEmpty) {
       throw ApiException('Provide your phone number');
     }
     await _client.post(
-      '/auth/login/otp/request',
+      '/auth/register/otp/request',
       body: {'phone': trimmed},
       authorized: false,
     );
   }
 
-  Future<(AppUser user, String token)> verifyLoginOtp({
+  Future<(AppUser user, String token)> verifyRegistrationOtp({
     required String phone,
     required String otp,
   }) async {
@@ -226,7 +226,7 @@ class LegebreApi {
     }
 
     final response = await _client.post(
-      '/auth/login/otp/verify',
+      '/auth/register/otp/verify',
       body: {'phone': trimmedPhone, 'otp': trimmedOtp},
       authorized: false,
     );
@@ -237,14 +237,14 @@ class LegebreApi {
     return (user, token);
   }
 
-  Future<void> requestPasswordReset({required String email}) async {
-    final trimmed = email.trim();
+  Future<void> requestPasswordReset({required String phone}) async {
+    final trimmed = phone.trim();
     if (trimmed.isEmpty) {
-      throw ApiException('Provide your email to reset password');
+      throw ApiException('Provide your phone number to reset password');
     }
     await _client.post(
       '/auth/forgot-password',
-      body: {'email': trimmed},
+      body: {'phone': trimmed},
       authorized: false,
     );
   }

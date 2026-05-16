@@ -165,21 +165,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestLoginOtp({required String phone}) async {
-    await _api.requestLoginOtp(phone: phone);
-  }
-
-  Future<void> verifyLoginOtp({
-    required String phone,
-    required String otp,
-  }) async {
-    final (user, _) = await _api.verifyLoginOtp(phone: phone, otp: otp);
-    _user = user;
-    _status = AppStatus.authenticated;
-    await _registerDeviceTokenIfNeeded();
-    notifyListeners();
-  }
-
   Future<void> register({
     required String name,
     required String password,
@@ -188,7 +173,7 @@ class AppState extends ChangeNotifier {
     String? whatsapp,
     String role = 'BUYER',
   }) async {
-    final (user, _) = await _api.register(
+    await _api.register(
       name: name,
       password: password,
       email: email,
@@ -196,14 +181,25 @@ class AppState extends ChangeNotifier {
       whatsapp: whatsapp,
       role: role,
     );
+  }
+
+  Future<void> requestRegistrationOtp({required String phone}) async {
+    await _api.requestRegistrationOtp(phone: phone);
+  }
+
+  Future<void> verifyRegistrationOtp({
+    required String phone,
+    required String otp,
+  }) async {
+    final (user, _) = await _api.verifyRegistrationOtp(phone: phone, otp: otp);
     _user = user;
     _status = AppStatus.authenticated;
     await _registerDeviceTokenIfNeeded();
     notifyListeners();
   }
 
-  Future<void> requestPasswordReset(String email) {
-    return _api.requestPasswordReset(email: email);
+  Future<void> requestPasswordReset(String phone) {
+    return _api.requestPasswordReset(phone: phone);
   }
 
   Future<void> resetPassword({required String otp, required String password}) {

@@ -8,9 +8,9 @@ import '../services/api_exception.dart';
 import '../state/app_state.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key, this.initialEmail = ''});
+  const ForgotPasswordScreen({super.key, this.initialPhone = ''});
 
-  final String initialEmail;
+  final String initialPhone;
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -18,19 +18,31 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
   bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(text: widget.initialEmail);
+    _phoneController = TextEditingController(text: widget.initialPhone);
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
+  }
+
+  String _normalizeEthiopiaPhone(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('251')) return digits;
+    if (digits.startsWith('0') && digits.length == 10) {
+      return '251${digits.substring(1)}';
+    }
+    if (digits.length == 9 && digits.startsWith('9')) {
+      return '251$digits';
+    }
+    return digits;
   }
 
   Future<void> _submit() async {
@@ -39,18 +51,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _submitting = true);
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
-    final email = _emailController.text.trim();
+    final phone = _normalizeEthiopiaPhone(_phoneController.text.trim());
     try {
-      await appState.requestPasswordReset(email);
+      await appState.requestPasswordReset(phone);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            context.tr('Check your email for the verification code.'),
+            context.tr('Check your phone for the verification code.'),
           ),
         ),
       );
       final result = await Navigator.of(context).push<String>(
-        MaterialPageRoute(builder: (_) => ResetPasswordScreen(email: email)),
+        MaterialPageRoute(builder: (_) => ResetPasswordScreen(phone: phone)),
       );
       if (!mounted) return;
       if (result != null) {
@@ -84,7 +96,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               children: [
                 Text(
                   context.tr(
-                    "Enter the email you use for Legebere and we'll send you a 6-digit code.",
+                    "Enter the phone number you use for Legebere and we'll send you a 6-digit code.",
                   ),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[700],
@@ -92,18 +104,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: context.tr('Email address'),
-                    prefixIcon: const Icon(Icons.alternate_email_outlined),
+                    labelText: context.tr('Phone number'),
+                    prefixText: '+251 ',
+                    prefixIcon: const Icon(Icons.phone_rounded),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return context.tr('Email is required');
+                      return context.tr('Phone number is required');
                     }
-                    if (!value.contains('@')) {
-                      return context.tr('Enter your email');
+                    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+                    final normalized = digits.startsWith('251')
+                        ? digits
+                        : (digits.length == 9 && digits.startsWith('9')
+                            ? '251$digits'
+                            : digits);
+                    if (!normalized.startsWith('2519') ||
+                        normalized.length != 12) {
+                      return context.tr('Phone must start with 2519');
                     }
                     return null;
                   },
@@ -133,9 +153,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 }
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key, required this.email});
+  const ResetPasswordScreen({super.key, required this.phone});
 
-  final String email;
+  final String phone;
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -225,7 +245,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         SnackBar(content: Text(context.tr('Password updated successfully'))),
       );
       if (!mounted) return;
-      Navigator.of(context).pop(widget.email);
+      Navigator.of(context).pop(widget.phone);
     } on ApiException catch (error) {
       messenger.showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
@@ -245,7 +265,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await appState.requestPasswordReset(widget.email);
+      await appState.requestPasswordReset(widget.phone);
       messenger.showSnackBar(
         SnackBar(content: Text(context.tr('We just sent you a new code.'))),
       );
@@ -278,7 +298,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: ListView(
               children: [
                 Text(
-                  context.tr('Enter the 6-digit code sent to your email'),
+                  context.tr('Enter the 6-digit code sent to your phone'),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[700],
                   ),

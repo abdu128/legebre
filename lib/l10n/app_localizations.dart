@@ -59,6 +59,13 @@ class AppLocalizations {
     'Send login code': 'Send login code',
     'Verify & log in': 'Verify & log in',
     'We sent a login code to your phone': 'We sent a login code to your phone',
+      'We sent a verification code to your phone':
+          'We sent a verification code to your phone',
+      'Verify phone': 'Verify phone',
+      'Verify & continue': 'Verify & continue',
+      'Account verified successfully': 'Account verified successfully',
+      'Enter the 6-digit code sent to your phone':
+          'Enter the 6-digit code sent to your phone',
       'Password': 'የሚስጥር ቃል',
       'Use at least 6 characters': 'ቢያንስ 6 ቁምፊዎችን ተጠቀም',
       'Create account': 'መለያ ፍጠር',
@@ -67,12 +74,16 @@ class AppLocalizations {
       'Recover your account': 'መለያዎን ይመልሱ',
       "Enter the email you use for Legebere and we'll send you a 6-digit code.":
           'በለገበሬ ላይ የሚጠቀሙትን ኢሜይል ያስገቡ፤ 6 አሃዝ ኮድ እንልክልዎታለን።',
+      "Enter the phone number you use for Legebere and we'll send you a 6-digit code.":
+          "Enter the phone number you use for Legebere and we'll send you a 6-digit code.",
       'Email address': 'ኢሜይል አድራሻ',
       'Email is required': 'ኢሜይል አስፈላጊ ነው',
       'Enter your email': 'ኢሜይልዎን ያስገቡ',
       'Send reset code': 'የማስጀመር ኮድ ላክ',
       'Check your email for the verification code.':
           'የማረጋገጥ ኮድ ለማየት ኢሜይልዎን ያረጋግጡ።',
+      'Check your phone for the verification code.':
+          'Check your phone for the verification code.',
       'Enter the 6-digit code sent to your email':
           'ወደ ኢሜይልዎ የተላከውን 6 አሃዝ ኮድ ያስገቡ',
       'Verification code': 'የማረጋገጫ ኮድ',
@@ -371,6 +382,13 @@ class AppLocalizations {
     'Send login code': 'Send login code',
     'Verify & log in': 'Verify & log in',
     'We sent a login code to your phone': 'We sent a login code to your phone',
+      'We sent a verification code to your phone':
+          'We sent a verification code to your phone',
+      'Verify phone': 'Verify phone',
+      'Verify & continue': 'Verify & continue',
+      'Account verified successfully': 'Account verified successfully',
+      'Enter the 6-digit code sent to your phone':
+          'Enter the 6-digit code sent to your phone',
       'Password': 'Jecha icciitii',
       'Use at least 6 characters': 'Yoo xiqqaate qubee 6 fayyadami',
       'Create account': 'Herrega uumi',
@@ -379,12 +397,16 @@ class AppLocalizations {
       'Recover your account': 'Herrega kee deebisi',
       "Enter the email you use for Legebere and we'll send you a 6-digit code.":
           'Imeelii Legebere keessatti fayyadamtan galchi; koodii lakkoofsaa 6 siif ergina.',
+      "Enter the phone number you use for Legebere and we'll send you a 6-digit code.":
+          "Enter the phone number you use for Legebere and we'll send you a 6-digit code.",
       'Email address': 'Teessoo imeelii',
       'Email is required': 'Imeeliin dirqama',
       'Enter your email': 'Imeelii kee galchi',
       'Send reset code': 'Koodii haaromsaa ergi',
       'Check your email for the verification code.':
           'Koodiin mirkaneessaa imeelii kee keessatti argama.',
+      'Check your phone for the verification code.':
+          'Check your phone for the verification code.',
       'Enter the 6-digit code sent to your email':
           'Imeelii kee irratti ergine koodii lakkoofsaa 6 galchi',
       'Verification code': 'Koodii mirkaneessaa',
@@ -692,6 +714,13 @@ class AppLocalizations {
     'Send login code': 'Send login code',
     'Verify & log in': 'Verify & log in',
     'We sent a login code to your phone': 'We sent a login code to your phone',
+      'We sent a verification code to your phone':
+          'We sent a verification code to your phone',
+      'Verify phone': 'Verify phone',
+      'Verify & continue': 'Verify & continue',
+      'Account verified successfully': 'Account verified successfully',
+      'Enter the 6-digit code sent to your phone':
+          'Enter the 6-digit code sent to your phone',
       'Password': 'Furaha sirta ah',
       'Use at least 6 characters': 'Isticmaal ugu yaraan 6 xaraf',
       'Create account': 'Abuur xisaab',
@@ -700,12 +729,16 @@ class AppLocalizations {
       'Recover your account': 'Soo ceshada akoonkaaga',
       "Enter the email you use for Legebere and we'll send you a 6-digit code.":
           'Geli email-ka aad ku isticmaasho Legebere si aan kuu siino koodh 6-lambar ah.',
+      "Enter the phone number you use for Legebere and we'll send you a 6-digit code.":
+          "Enter the phone number you use for Legebere and we'll send you a 6-digit code.",
       'Email address': 'Cinwaanka email-ka',
       'Email is required': 'Email waa qasab',
       'Enter your email': 'Geli email-kaaga',
       'Send reset code': 'Dir koodhka dib u dejinta',
       'Check your email for the verification code.':
           'Fadlan hubi email-kaaga koodhka xaqiijinta.',
+      'Check your phone for the verification code.':
+          'Check your phone for the verification code.',
       'Enter the 6-digit code sent to your email':
           'Geli koodhka 6-lambar ah ee aan email-ka kuugu soo dirnay',
       'Verification code': 'Koodhka xaqiijinta',

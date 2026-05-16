@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
 import 'forgot_password_screen.dart';
+import 'registration_otp_screen.dart';
 
 enum AuthMode { login, register }
 
@@ -23,18 +22,12 @@ class _AuthScreenState extends State<AuthScreen> {
   int _languageIndex = 0;
   bool _obscure = true;
   bool _submitting = false;
-  bool _sendingOtp = false;
-  bool _verifyingOtp = false;
-  bool _otpSent = false;
-  Duration _otpRemaining = Duration.zero;
-  Timer? _otpTimer;
   String _role = 'BUYER';
   bool _syncedLocale = false;
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _identifierController = TextEditingController();
-  final _otpController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _whatsappController = TextEditingController();
@@ -49,10 +42,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    _otpTimer?.cancel();
     _nameController.dispose();
     _identifierController.dispose();
-    _otpController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _whatsappController.dispose();
@@ -63,8 +54,19 @@ class _AuthScreenState extends State<AuthScreen> {
   void _toggleMode() {
     setState(() {
       _mode = _mode == AuthMode.login ? AuthMode.register : AuthMode.login;
-      _resetOtpState();
     });
+  }
+
+  String _normalizeEthiopiaPhone(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('251')) return digits;
+    if (digits.startsWith('0') && digits.length == 10) {
+      return '251${digits.substring(1)}';
+    }
+    if (digits.length == 9 && digits.startsWith('9')) {
+      return '251$digits';
+    }
+    return digits;
   }
 
   @override
@@ -81,43 +83,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _syncedLocale = true;
   }
 
-  void _resetOtpState() {
-    _otpTimer?.cancel();
-    _otpRemaining = Duration.zero;
-    _otpSent = false;
-    _sendingOtp = false;
-    _verifyingOtp = false;
-    _otpController.clear();
-  }
-
-  void _startOtpTimer() {
-    _otpTimer?.cancel();
-    _otpRemaining = const Duration(seconds: 60);
-    _otpTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (_otpRemaining.inSeconds <= 1) {
-        setState(() => _otpRemaining = Duration.zero);
-        timer.cancel();
-      } else {
-        setState(() => _otpRemaining -= const Duration(seconds: 1));
-      }
-    });
-  }
-
-  String get _formattedOtpRemaining {
-    final seconds = _otpRemaining.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '00:$seconds';
-  }
-
   Future<void> _handleSubmit() async {
-    if (_mode == AuthMode.login) {
-      await _handleLoginAction();
-      return;
-    }
-
     if (_submitting) return;
     if (!_formKey.currentState!.validate()) return;
 
@@ -126,26 +92,53 @@ class _AuthScreenState extends State<AuthScreen> {
     final scaffold = ScaffoldMessenger.of(context);
 
     try {
-      final trimmedWhatsapp = _whatsappController.text.trim();
-      await appState.register(
-        name: _nameController.text.trim(),
-        password: _passwordController.text,
-        email: _emailController.text.trim().isEmpty
+      if (_mode == AuthMode.login) {
+        await appState.login(
+          identifier: _identifierController.text.trim(),
+          password: _passwordController.text,
+        );
+        scaffold.showSnackBar(
+          SnackBar(content: Text(context.tr('Welcome back!'))),
+        );
+        if (mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        final trimmedWhatsapp = _whatsappController.text.trim();
+        final normalizedPhone = _normalizeEthiopiaPhone(
+          _phoneController.text.trim(),
+        );
+        final normalizedWhatsapp = trimmedWhatsapp.isEmpty
             ? null
-            : _emailController.text.trim(),
-        phone: _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
-        whatsapp: _role == 'SELLER' && trimmedWhatsapp.isNotEmpty
-            ? trimmedWhatsapp
-            : null,
-        role: _role,
-      );
-      scaffold.showSnackBar(
-        SnackBar(content: Text(context.tr('Account created successfully'))),
-      );
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
+            : _normalizeEthiopiaPhone(trimmedWhatsapp);
+        await appState.register(
+          name: _nameController.text.trim(),
+          password: _passwordController.text,
+          email: _emailController.text.trim().isEmpty
+              ? null
+              : _emailController.text.trim(),
+          phone: normalizedPhone.isEmpty ? null : normalizedPhone,
+          whatsapp: _role == 'SELLER' ? normalizedWhatsapp : null,
+          role: _role,
+        );
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr('We sent a verification code to your phone'),
+            ),
+          ),
+        );
+        if (!mounted) return;
+        final result = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => RegistrationOtpScreen(
+              phone: _phoneController.text.trim(),
+            ),
+          ),
+        );
+        if (result == true && mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        }
       }
     } on ApiException catch (error) {
       scaffold.showSnackBar(SnackBar(content: Text(error.message)));
@@ -156,74 +149,6 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
-      }
-    }
-  }
-
-  Future<void> _handleLoginAction() async {
-    if (_sendingOtp || _verifyingOtp) return;
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_otpSent) {
-      await _verifyLoginOtp();
-    } else {
-      await _sendLoginOtp();
-    }
-  }
-
-  Future<void> _sendLoginOtp() async {
-    if (_sendingOtp) return;
-    setState(() => _sendingOtp = true);
-    final appState = context.read<AppState>();
-    final scaffold = ScaffoldMessenger.of(context);
-    try {
-      await appState.requestLoginOtp(
-        phone: _identifierController.text.trim(),
-      );
-      if (!mounted) return;
-      setState(() => _otpSent = true);
-      _startOtpTimer();
-      scaffold.showSnackBar(
-        SnackBar(content: Text(context.tr('We sent a login code to your phone'))),
-      );
-    } on ApiException catch (error) {
-      scaffold.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(context.tr('Something went wrong. Try again.'))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _sendingOtp = false);
-      }
-    }
-  }
-
-  Future<void> _verifyLoginOtp() async {
-    if (_verifyingOtp) return;
-    setState(() => _verifyingOtp = true);
-    final appState = context.read<AppState>();
-    final scaffold = ScaffoldMessenger.of(context);
-    try {
-      await appState.verifyLoginOtp(
-        phone: _identifierController.text.trim(),
-        otp: _otpController.text.trim(),
-      );
-      scaffold.showSnackBar(
-        SnackBar(content: Text(context.tr('Welcome back!'))),
-      );
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      }
-    } on ApiException catch (error) {
-      scaffold.showSnackBar(SnackBar(content: Text(error.message)));
-    } catch (_) {
-      scaffold.showSnackBar(
-        SnackBar(content: Text(context.tr('Something went wrong. Try again.'))),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _verifyingOtp = false);
       }
     }
   }
@@ -450,6 +375,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                             labelText: context.tr(
                                               'Phone number',
                                             ),
+                                            prefixText: '+251 ',
                                             prefixIcon: const Icon(
                                               Icons.phone_rounded,
                                               color: Colors.grey,
@@ -468,8 +394,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                                 RegExp(r'[^0-9]'),
                                                 '',
                                               );
-                                              if (!digits.startsWith('2519') ||
-                                                  digits.length != 12) {
+                                              final normalized = digits.startsWith('251')
+                                                  ? digits
+                                                  : (digits.length == 9 &&
+                                                          digits.startsWith('9')
+                                                      ? '251$digits'
+                                                      : digits);
+                                              if (!normalized.startsWith('2519') ||
+                                                  normalized.length != 12) {
                                                 return context.tr(
                                                   'Phone must start with 2519',
                                                 );
@@ -487,6 +419,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                               labelText: context.tr(
                                                 'WhatsApp number',
                                               ),
+                                              prefixText: '+251 ',
                                               prefixIcon: const Icon(
                                                 Icons.chat_rounded,
                                                 color: Colors.grey,
@@ -500,6 +433,26 @@ class _AuthScreenState extends State<AuthScreen> {
                                                   'WhatsApp number is required',
                                                 );
                                               }
+                                              if (_role == 'SELLER' &&
+                                                  value != null &&
+                                                  value.trim().isNotEmpty) {
+                                                final digits = value.replaceAll(
+                                                  RegExp(r'[^0-9]'),
+                                                  '',
+                                                );
+                                                final normalized = digits.startsWith('251')
+                                                    ? digits
+                                                    : (digits.length == 9 &&
+                                                            digits.startsWith('9')
+                                                        ? '251$digits'
+                                                        : digits);
+                                                if (!normalized.startsWith('2519') ||
+                                                    normalized.length != 12) {
+                                                  return context.tr(
+                                                    'Phone must start with 2519',
+                                                  );
+                                                }
+                                              }
                                               return null;
                                             },
                                           ),
@@ -509,13 +462,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                       if (isLogin) ...[
                                         TextFormField(
                                           controller: _identifierController,
-                                          keyboardType: TextInputType.phone,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
                                           decoration: InputDecoration(
                                             labelText: context.tr(
-                                              'Phone number',
+                                              'Email or phone',
                                             ),
                                             prefixIcon: const Icon(
-                                              Icons.phone_rounded,
+                                              Icons.alternate_email_rounded,
                                               color: Colors.grey,
                                             ),
                                           ),
@@ -524,123 +478,62 @@ class _AuthScreenState extends State<AuthScreen> {
                                                 (value == null ||
                                                     value.trim().isEmpty)) {
                                               return context.tr(
-                                                'Enter your phone number',
+                                                'Enter your email or phone',
                                               );
-                                            }
-                                            if (isLogin && value != null) {
-                                              final digits =
-                                                  value.replaceAll(RegExp(r'[^0-9]'), '');
-                                              if (!digits.startsWith('2519') ||
-                                                  digits.length != 12) {
-                                                return context.tr(
-                                                  'Phone must start with 2519',
-                                                );
-                                              }
                                             }
                                             return null;
                                           },
                                         ),
                                         const SizedBox(height: 16),
-                                        if (_otpSent) ...[
-                                          TextFormField(
-                                            controller: _otpController,
-                                            keyboardType: TextInputType.number,
-                                            maxLength: 6,
-                                            decoration: InputDecoration(
-                                              labelText:
-                                                  context.tr('Verification code'),
-                                              counterText: '',
-                                              prefixIcon: const Icon(
-                                                Icons.verified_rounded,
-                                                color: Colors.grey,
-                                              ),
-                                            ),
-                                            validator: (value) {
-                                              if (_otpSent &&
-                                                  (value == null ||
-                                                      value.trim().length !=
-                                                          6)) {
-                                                return context.tr(
-                                                  'Enter the 6-digit code',
-                                                );
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                _otpRemaining == Duration.zero
-                                                    ? context
-                                                        .tr('Resend code')
-                                                    : '${context.tr('Code expires in')} $_formattedOtpRemaining',
-                                                style: theme
-                                                    .textTheme.bodySmall
-                                                    ?.copyWith(
-                                                      color: Colors
-                                                          .grey.shade600,
-                                                    ),
-                                              ),
-                                              TextButton(
-                                                onPressed: _otpRemaining ==
-                                                            Duration.zero &&
-                                                        !_sendingOtp
-                                                    ? _sendLoginOtp
-                                                    : null,
-                                                child: Text(
-                                                  context.tr('Resend code'),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                        ],
                                       ],
-                                      if (!isLogin) ...[
-                                        TextFormField(
-                                          controller: _passwordController,
-                                          obscureText: _obscure,
-                                          decoration: InputDecoration(
-                                            labelText: context.tr('Password'),
-                                            prefixIcon: const Icon(
-                                              Icons.lock_outline,
-                                              color: Colors.grey,
+                                      TextFormField(
+                                        controller: _passwordController,
+                                        obscureText: _obscure,
+                                        decoration: InputDecoration(
+                                          labelText: context.tr('Password'),
+                                          prefixIcon: const Icon(
+                                            Icons.lock_outline,
+                                            color: Colors.grey,
+                                          ),
+                                          suffixIcon: IconButton(
+                                            onPressed: () => setState(
+                                              () => _obscure = !_obscure,
                                             ),
-                                            suffixIcon: IconButton(
-                                              onPressed: () => setState(
-                                                () => _obscure = !_obscure,
-                                              ),
-                                              icon: Icon(
-                                                _obscure
-                                                    ? Icons.visibility_off
-                                                    : Icons.visibility,
-                                              ),
+                                            icon: Icon(
+                                              _obscure
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
                                             ),
                                           ),
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.length < 6) {
-                                              return context.tr(
-                                                'Use at least 6 characters',
-                                              );
-                                            }
-                                            return null;
-                                          },
                                         ),
-                                        const SizedBox(height: 24),
-                                      ],
+                                        validator: (value) {
+                                          if (value == null ||
+                                              value.length < 6) {
+                                            return context.tr(
+                                              'Use at least 6 characters',
+                                            );
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                      const SizedBox(height: 24),
+                                      if (isLogin)
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: _submitting
+                                                ? null
+                                                : _openForgotPassword,
+                                            child: Text(
+                                              context.tr('Forgot password?'),
+                                            ),
+                                          ),
+                                        ),
+                                      if (isLogin) const SizedBox(height: 8),
                                       ElevatedButton(
-                                        onPressed: (_submitting ||
-                                                _sendingOtp ||
-                                                _verifyingOtp)
-                                            ? null
-                                            : _handleSubmit,
-                                        child: (_submitting ||
-                                                _sendingOtp ||
-                                                _verifyingOtp)
+                                        onPressed:
+                                            _submitting ? null : _handleSubmit,
+                                        child: _submitting
                                             ? const SizedBox(
                                                 height: 22,
                                                 width: 22,
@@ -651,13 +544,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                               )
                                             : Text(
                                                 isLogin
-                                                    ? (_otpSent
-                                                        ? context.tr(
-                                                            'Verify & log in',
-                                                          )
-                                                        : context.tr(
-                                                            'Send login code',
-                                                          ))
+                                                    ? context.tr('Log in')
                                                     : context.tr(
                                                         'Create account',
                                                       ),
@@ -731,11 +618,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _openForgotPassword() async {
     final initial = _identifierController.text.contains('@')
-        ? _identifierController.text.trim()
-        : '';
+        ? ''
+        : _identifierController.text.trim();
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => ForgotPasswordScreen(initialEmail: initial),
+        builder: (_) => ForgotPasswordScreen(initialPhone: initial),
       ),
     );
     if (result != null && mounted) {
