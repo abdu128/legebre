@@ -93,8 +93,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_mode == AuthMode.login) {
+        final normalizedPhone = _normalizeEthiopiaPhone(
+          _identifierController.text.trim(),
+        );
         await appState.login(
-          identifier: _identifierController.text.trim(),
+          phone: normalizedPhone,
           password: _passwordController.text,
         );
         scaffold.showSnackBar(
@@ -462,14 +465,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                       if (isLogin) ...[
                                         TextFormField(
                                           controller: _identifierController,
-                                          keyboardType:
-                                              TextInputType.emailAddress,
+                                          keyboardType: TextInputType.phone,
                                           decoration: InputDecoration(
                                             labelText: context.tr(
-                                              'Email or phone',
+                                              'Phone number',
                                             ),
+                                            prefixText: '+251 ',
                                             prefixIcon: const Icon(
-                                              Icons.alternate_email_rounded,
+                                              Icons.phone_rounded,
                                               color: Colors.grey,
                                             ),
                                           ),
@@ -478,8 +481,23 @@ class _AuthScreenState extends State<AuthScreen> {
                                                 (value == null ||
                                                     value.trim().isEmpty)) {
                                               return context.tr(
-                                                'Enter your email or phone',
+                                                'Enter your phone number',
                                               );
+                                            }
+                                            if (isLogin && value != null) {
+                                              final digits = value
+                                                  .replaceAll(RegExp(r'[^0-9]'), '');
+                                              final normalized = digits.startsWith('251')
+                                                  ? digits
+                                                  : (digits.length == 9 && digits.startsWith('9')
+                                                      ? '251$digits'
+                                                      : digits);
+                                              if (!normalized.startsWith('2519') ||
+                                                  normalized.length != 12) {
+                                                return context.tr(
+                                                  'Phone must start with 2519',
+                                                );
+                                              }
                                             }
                                             return null;
                                           },
@@ -617,9 +635,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _openForgotPassword() async {
-    final initial = _identifierController.text.contains('@')
-        ? ''
-        : _identifierController.text.trim();
+    final initial = _identifierController.text.trim();
     final result = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => ForgotPasswordScreen(initialPhone: initial),

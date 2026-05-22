@@ -162,34 +162,18 @@ class LegebreApi {
   }
 
   Future<(AppUser user, String token)> login({
-    String? identifier,
-    String? email,
-    String? phone,
+    required String phone,
     required String password,
   }) async {
-    final body = <String, dynamic>{'password': password};
-
-    // Prefer the single identifier field from the UI
-    if (identifier != null && identifier.trim().isNotEmpty) {
-      final trimmed = identifier.trim();
-      if (trimmed.contains('@')) {
-        body['email'] = trimmed;
-      } else {
-        body['phone'] = trimmed;
-      }
-    } else {
-      // Fallback to explicit email / phone params if provided
-      if (email != null && email.trim().isNotEmpty) {
-        body['email'] = email.trim();
-      }
-      if (phone != null && phone.trim().isNotEmpty) {
-        body['phone'] = phone.trim();
-      }
+    final trimmedPhone = phone.trim();
+    if (trimmedPhone.isEmpty) {
+      throw ApiException('Provide your phone number to login');
     }
 
-    if (!body.containsKey('email') && !body.containsKey('phone')) {
-      throw ApiException('Provide email or phone to login');
-    }
+    final body = <String, dynamic>{
+      'password': password,
+      'phone': _normalizeEthiopiaPhone(trimmedPhone),
+    };
 
     final response = await _client.post(
       '/auth/login',
@@ -201,6 +185,18 @@ class LegebreApi {
     await _persistToken(token);
     final user = AppUser.fromJson(response['user'] as Map<String, dynamic>);
     return (user, token);
+  }
+
+  String _normalizeEthiopiaPhone(String value) {
+    final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.startsWith('251')) return digits;
+    if (digits.startsWith('0') && digits.length == 10) {
+      return '251${digits.substring(1)}';
+    }
+    if (digits.length == 9 && digits.startsWith('9')) {
+      return '251$digits';
+    }
+    return digits;
   }
 
   Future<void> requestRegistrationOtp({required String phone}) async {
@@ -770,7 +766,7 @@ class LegebreApi {
     final response = await _client.get(
       '/courses',
       query: {'limit': limit, 'page': page, if (filters != null) ...filters},
-      authorized: false,
+      optionalAuth: true,
     );
     final items = _extractList(
       response,
@@ -780,12 +776,62 @@ class LegebreApi {
   }
 
   Future<Course> getCourse(int id) async {
-    final response = await _client.get('/courses/$id', authorized: false);
+    final response = await _client.get('/courses/$id', optionalAuth: true);
     final data = _extractObject(
       response,
       preferredKeys: const ['course', 'data'],
     );
     return Course.fromJson(data.isEmpty ? response : data);
+  }
+
+  Future<Map<String, dynamic>> getCourseAccessStatus(int id) async {
+    final response = await _client.get(
+      '/courses/$id/access-status',
+      authorized: true,
+    );
+    return _extractObject(response, preferredKeys: const ['access', 'data']);
+  }
+
+  Future<Map<String, dynamic>> submitCourseAccessRequest(
+    int id, {
+    required String payerName,
+    required String transactionReference,
+    XFile? paymentProof,
+    String? proofUrl,
+    bool requireOtp = true,
+  }) async {
+    final fields = _cleanFields({
+      'payerName': payerName,
+      'transactionReference': transactionReference,
+      'requireOtp': requireOtp ? 'true' : 'false',
+      if (proofUrl != null) 'proofUrl': proofUrl,
+    });
+
+    final files = <http.MultipartFile>[];
+    if (paymentProof != null) {
+      files.add(await _fileFromXFile(paymentProof, fieldName: 'paymentProof'));
+    }
+
+    final response = await _client.uploadMultipart(
+      '/courses/$id/access-requests',
+      fields: fields,
+      files: files,
+      authorized: true,
+    );
+
+    return _extractObject(response, preferredKeys: const ['request', 'data']);
+  }
+
+  Future<Map<String, dynamic>> verifyCourseAccessOtp(
+    int id, {
+    required String otp,
+  }) async {
+    final response = await _client.post(
+      '/courses/$id/access-verify',
+      body: {'otp': otp},
+      authorized: true,
+    );
+    return _extractObject(response, preferredKeys: const ['access', 'data']);
   }
 
   Future<Course> createCourse({
@@ -865,7 +911,10 @@ class LegebreApi {
   }
 
   Future<List<Map<String, dynamic>>> getCourseVideos(int courseId) async {
-    final response = await _client.get('/videos/course/$courseId');
+    final response = await _client.get(
+      '/videos/course/$courseId',
+      optionalAuth: true,
+    );
     return _extractList(
       response,
       preferredKeys: const ['videos', 'data', 'results'],
@@ -873,7 +922,7 @@ class LegebreApi {
   }
 
   Future<Map<String, dynamic>> getVideo(int id) async {
-    final response = await _client.get('/videos/$id');
+    final response = await _client.get('/videos/$id', optionalAuth: true);
     return _extractObject(response, preferredKeys: const ['video', 'data']);
   }
 
@@ -903,7 +952,10 @@ class LegebreApi {
   }
 
   Future<List<Map<String, dynamic>>> getTextLessons(int courseId) async {
-    final response = await _client.get('/text-lessons/course/$courseId');
+    final response = await _client.get(
+      '/text-lessons/course/$courseId',
+      optionalAuth: true,
+    );
     return _extractList(
       response,
       preferredKeys: const ['lessons', 'textLessons', 'data'],
@@ -911,7 +963,7 @@ class LegebreApi {
   }
 
   Future<Map<String, dynamic>> getTextLesson(int id) async {
-    final response = await _client.get('/text-lessons/$id');
+    final response = await _client.get('/text-lessons/$id', optionalAuth: true);
     return _extractObject(response, preferredKeys: const ['lesson', 'data']);
   }
 

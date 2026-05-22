@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
@@ -144,6 +147,426 @@ class _ELearningScreenState extends State<ELearningScreen> {
     }
   }
 
+  Future<void> _showPaymentSheet(Course course) async {
+    final theme = Theme.of(context);
+    final formKey = GlobalKey<FormState>();
+    final payerNameController = TextEditingController();
+    final refController = TextEditingController();
+    final picker = ImagePicker();
+    XFile? selectedPhoto;
+    bool requireOtp = true;
+    bool isSubmittingProof = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> pickProofPhoto() async {
+              final image = await picker.pickImage(source: ImageSource.gallery);
+              if (image != null) {
+                setModalState(() {
+                  selectedPhoto = image;
+                });
+              }
+            }
+
+            Future<void> submitProof() async {
+              if (!formKey.currentState!.validate()) return;
+              if (selectedPhoto == null && refController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.tr('Please upload a proof image or enter a transaction reference'),
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              setModalState(() => isSubmittingProof = true);
+              final messenger = ScaffoldMessenger.of(context);
+              final api = context.read<AppState>().api;
+
+              try {
+                await api.submitCourseAccessRequest(
+                  course.id,
+                  payerName: payerNameController.text.trim(),
+                  transactionReference: refController.text.trim(),
+                  paymentProof: selectedPhoto,
+                  requireOtp: requireOtp,
+                );
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.tr('Payment proof submitted successfully'),
+                    ),
+                    backgroundColor: AppColors.primaryGreen,
+                  ),
+                );
+                Navigator.of(context).pop();
+                _refresh();
+              } on ApiException catch (error) {
+                messenger.showSnackBar(SnackBar(content: Text(error.message)));
+              } catch (_) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.tr('Failed to submit payment proof'),
+                    ),
+                  ),
+                );
+              } finally {
+                setModalState(() => isSubmittingProof = false);
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 24,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              context.tr('Unlock Course'),
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr('Bank Payment Details'),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryGreen,
+                                ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (course.bankName != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text('${context.tr('Bank Name')}: ${course.bankName}'),
+                              ),
+                            if (course.bankAccountName != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text('${context.tr('Account Name')}: ${course.bankAccountName}'),
+                              ),
+                            if (course.bankAccountNumber != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  '${context.tr('Account Number')}: ${course.bankAccountNumber}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            if (course.paymentInstructions != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  course.paymentInstructions!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: payerNameController,
+                        decoration: InputDecoration(
+                          hintText: context.tr('Payer Name *'),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return context.tr('Payer name is required');
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: refController,
+                        decoration: InputDecoration(
+                          hintText: context.tr('Transaction Reference'),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: pickProofPhoto,
+                        child: Container(
+                          height: 140,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: AppColors.primaryGreen.withValues(alpha: 0.2),
+                            ),
+                            color: AppColors.background,
+                          ),
+                          child: selectedPhoto == null
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.add_a_photo_rounded,
+                                        color: AppColors.primaryGreen,
+                                        size: 28,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        context.tr('Upload Payment Receipt'),
+                                        style: const TextStyle(
+                                          color: AppColors.primaryGreen,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: Image.file(
+                                        File(selectedPhoto!.path),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 10,
+                                      right: 10,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setModalState(() {
+                                            selectedPhoto = null;
+                                          });
+                                        },
+                                        child: Container(
+                                          decoration: const BoxDecoration(
+                                            color: Colors.black87,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          padding: const EdgeInsets.all(4),
+                                          child: const Icon(
+                                            Icons.close,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        title: Text(
+                          context.tr('Receive Access Code via SMS'),
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        value: requireOtp,
+                        activeColor: AppColors.primaryGreen,
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (value) {
+                          setModalState(() {
+                            requireOtp = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: isSubmittingProof ? null : submitProof,
+                        child: isSubmittingProof
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(context.tr('Submit Payment Proof')),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showOtpDialog(Course course) async {
+    final otpController = TextEditingController();
+    bool isVerifying = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> verifyOtp() async {
+              final otp = otpController.text.trim();
+              if (otp.length != 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(context.tr('Please enter 6-digit code')),
+                  ),
+                );
+                return;
+              }
+
+              setDialogState(() => isVerifying = true);
+              final messenger = ScaffoldMessenger.of(context);
+              final api = context.read<AppState>().api;
+
+              try {
+                await api.verifyCourseAccessOtp(course.id, otp: otp);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(context.tr('Course unlocked successfully')),
+                    backgroundColor: AppColors.primaryGreen,
+                  ),
+                );
+                Navigator.of(context).pop();
+                _refresh();
+              } on ApiException catch (error) {
+                messenger.showSnackBar(SnackBar(content: Text(error.message)));
+              } catch (_) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      context.tr('Failed to verify access code'),
+                    ),
+                  ),
+                );
+              } finally {
+                setDialogState(() => isVerifying = false);
+              }
+            }
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: Text(
+                context.tr('Enter Access Code'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.tr(
+                      'Please enter the 6-digit access code sent to your phone number.',
+                    ),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 8,
+                    ),
+                    decoration: const InputDecoration(
+                      counterText: '',
+                      hintText: '******',
+                      hintStyle: TextStyle(letterSpacing: 8),
+                    ),
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actions: [
+                TextButton(
+                  onPressed: isVerifying ? null : () => Navigator.of(context).pop(),
+                  child: Text(
+                    context.tr('Cancel'),
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ),
+                TextButton(
+                  onPressed: isVerifying ? null : verifyOtp,
+                  child: isVerifying
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          context.tr('Verify'),
+                          style: const TextStyle(
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -262,6 +685,11 @@ class _ELearningScreenState extends State<ELearningScreen> {
                         final isEnrolled = course.isEnrolled;
                         final progress = course.progress;
                         final isCompleted = course.isCompleted;
+                        final isPremium = course.isPremium;
+                        final isLocked = course.isLocked;
+                        final hasPendingRequest = course.access?.hasPendingRequest ?? false;
+                        final requiresOtp = course.access?.requiresOtp ?? false;
+
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -313,18 +741,66 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Expanded(
-                                              child: Text(
-                                                course.title,
-                                                style: theme
-                                                    .textTheme
-                                                    .titleMedium
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    course.title,
+                                                    style: theme
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                  if (isPremium && course.price != null)
+                                                    Padding(
+                                                      padding: const EdgeInsets.only(top: 4),
+                                                      child: Text(
+                                                        '${course.price} ${course.currency ?? 'ETB'}',
+                                                        style: theme.textTheme.titleSmall?.copyWith(
+                                                          color: AppColors.primaryGreen,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
                                                     ),
+                                                ],
                                               ),
                                             ),
-                                            if (course.difficulty != null)
+                                            if (isPremium)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                  left: 8,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.amber.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: Colors.amber.shade400,
+                                                    width: 1,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  context.tr('PREMIUM'),
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: Colors.amber.shade900,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        letterSpacing: .2,
+                                                      ),
+                                                ),
+                                              )
+                                            else if (course.difficulty != null)
                                               Container(
                                                 margin: const EdgeInsets.only(
                                                   left: 8,
@@ -455,6 +931,62 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                         ),
                                     ],
                                   ),
+                                )
+                              else if (isPremium && isLocked)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            hasPendingRequest
+                                                ? Icons.hourglass_empty_rounded
+                                                : requiresOtp
+                                                    ? Icons.lock_open_rounded
+                                                    : Icons.lock_rounded,
+                                            size: 16,
+                                            color: hasPendingRequest
+                                                ? AppColors.accentOrange
+                                                : requiresOtp
+                                                    ? AppColors.accentPurple
+                                                    : AppColors.accentRed,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            hasPendingRequest
+                                                ? context.tr('Payment pending verification')
+                                                : requiresOtp
+                                                    ? context.tr('Payment approved, verification needed')
+                                                    : context.tr('Premium course'),
+                                            style: TextStyle(
+                                              color: hasPendingRequest
+                                                  ? AppColors.accentOrange
+                                                  : requiresOtp
+                                                      ? AppColors.accentPurple
+                                                      : AppColors.accentRed,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        hasPendingRequest
+                                            ? context.tr('Admin is verifying your transaction proof.')
+                                            : requiresOtp
+                                                ? context.tr('Your payment is approved! Enter the code to start.')
+                                                : context.tr('Unlock full access to this course.'),
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               const SizedBox(height: 12),
                               Align(
@@ -487,25 +1019,44 @@ class _ELearningScreenState extends State<ELearningScreen> {
                                         ),
                                         label: Text(context.tr('See course')),
                                       )
-                                    : ElevatedButton(
-                                        onPressed: _enrollingId == course.id
-                                            ? null
-                                            : () => _enroll(
-                                                course.id,
-                                                course.title,
-                                              ),
-                                        child: _enrollingId == course.id
-                                            ? const SizedBox(
-                                                height: 18,
-                                                width: 18,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                              )
-                                            : Text(context.tr('Take course')),
-                                      ),
+                                    : (isPremium && isLocked)
+                                        ? ElevatedButton(
+                                            onPressed: hasPendingRequest
+                                                ? null
+                                                : () {
+                                                    if (requiresOtp) {
+                                                      _showOtpDialog(course);
+                                                    } else {
+                                                      _showPaymentSheet(course);
+                                                    }
+                                                  },
+                                            child: Text(
+                                              hasPendingRequest
+                                                  ? context.tr('Pending Approval')
+                                                  : requiresOtp
+                                                      ? context.tr('Enter Access Code')
+                                                      : context.tr('Unlock Course'),
+                                            ),
+                                          )
+                                        : ElevatedButton(
+                                            onPressed: _enrollingId == course.id
+                                                ? null
+                                                : () => _enroll(
+                                                    course.id,
+                                                    course.title,
+                                                  ),
+                                            child: _enrollingId == course.id
+                                                ? const SizedBox(
+                                                    height: 18,
+                                                    width: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white,
+                                                        ),
+                                                  )
+                                                : Text(context.tr('Take course')),
+                                          ),
                               ),
                             ],
                           ),

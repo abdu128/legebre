@@ -32,7 +32,10 @@ class ApiClient {
     );
   }
 
-  Future<Map<String, String>> _headers({bool authorized = false}) async {
+  Future<Map<String, String>> _headers({
+    bool authorized = false,
+    bool optionalAuth = false,
+  }) async {
     final headers = <String, String>{'Content-Type': 'application/json'};
     if (authorized) {
       final value = await token;
@@ -40,6 +43,11 @@ class ApiClient {
         throw ApiException('You need to log in first');
       }
       headers['Authorization'] = 'Bearer $value';
+    } else if (optionalAuth) {
+      final value = await token;
+      if (value != null && value.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $value';
+      }
     }
     return headers;
   }
@@ -48,10 +56,11 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? query,
     bool authorized = false,
+    bool optionalAuth = false,
   }) async {
     final response = await _client.get(
       _buildUri(path, query),
-      headers: await _headers(authorized: authorized),
+      headers: await _headers(authorized: authorized, optionalAuth: optionalAuth),
     );
     return _handleResponse(response);
   }

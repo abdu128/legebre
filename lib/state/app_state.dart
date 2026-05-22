@@ -152,11 +152,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> login({
-    required String identifier,
+    required String phone,
     required String password,
   }) async {
     final (user, _) = await _api.login(
-      identifier: identifier,
+      phone: phone,
       password: password,
     );
     _user = user;
