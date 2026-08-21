@@ -80,6 +80,16 @@ class _ELearningScreenState extends State<ELearningScreen> {
     return context.tr(fallbackKey);
   }
 
+  String? _normalizeMediaUrl(String? rawUrl) {
+    if (rawUrl == null) return null;
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    return 'https://$trimmed';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -690,6 +700,9 @@ class _ELearningScreenState extends State<ELearningScreen> {
                         final hasPendingRequest = course.access?.hasPendingRequest ?? false;
                         final requiresOtp = course.access?.requiresOtp ?? false;
 
+                        final thumbnailUrl =
+                            _normalizeMediaUrl(course.thumbnailUrl);
+
                         return Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -708,14 +721,39 @@ class _ELearningScreenState extends State<ELearningScreen> {
                             children: [
                               Row(
                                 children: [
-                                  if (course.thumbnailUrl != null)
+                                  if (thumbnailUrl != null)
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(16),
                                       child: Image.network(
-                                        course.thumbnailUrl!,
+                                        thumbnailUrl,
                                         width: 64,
                                         height: 64,
                                         fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loading) {
+                                          if (loading == null) return child;
+                                          return Container(
+                                            width: 64,
+                                            height: 64,
+                                            alignment: Alignment.center,
+                                            color: AppColors.background,
+                                            child: const SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 64,
+                                            height: 64,
+                                            decoration: BoxDecoration(
+                                              color: AppColors.background,
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            child: const Icon(Icons.menu_book_rounded),
+                                          );
+                                        },
                                       ),
                                     )
                                   else

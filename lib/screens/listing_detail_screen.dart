@@ -535,12 +535,24 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          sellerName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 16,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              sellerName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            if (widget.item.sellerVerified) ...[
+                                              const SizedBox(width: 6),
+                                              const Icon(
+                                                Icons.verified_rounded,
+                                                size: 16,
+                                                color: AppColors.primaryGreen,
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                         const SizedBox(height: 2),
                                         Text(

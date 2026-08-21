@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
@@ -26,6 +27,17 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  static const _facebookUrl =
+    'https://www.facebook.com/share/18rXxQkpNC/';
+  static const _instagramUrl =
+    'https://www.instagram.com/legebere?igsh=MW1pMGQ0NThyNmd4ZQ==';
+  static const _tiktokUrl =
+    'https://www.tiktok.com/@legebere?_r=1&_t=ZS-96bKL6ZyFCX';
+  static const _youtubeUrl =
+    'https://youtube.com/@legebere?si=c-3J5oj3jVBXIcVt';
+  static const _googlePlayUrl =
+    'https://play.google.com/store/apps/details?id=com.legebere.marketplace&pcampaignid=web_share';
+
   int _currentIndex = 0;
   bool _compactFooterExpanded = false;
   bool _showWebFooter = true;
@@ -44,6 +56,18 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _showWebFooter = visible;
     });
+  }
+
+  Future<void> _launchExternalUrl(String raw) async {
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return;
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Could not open link'))),
+      );
+    }
   }
 
   bool _handleWebScrollNotification(ScrollNotification notification) {
@@ -757,27 +781,28 @@ class _HomeShellState extends State<HomeShell> {
                                 icon: FontAwesomeIcons.facebookF,
                                 label: 'Facebook',
                                 onTap: () async {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Facebook coming soon')),
-                                  );
-                                },
-                              ),
-                              _buildCompactFooterSocialButton(
-                                icon: FontAwesomeIcons.linkedinIn,
-                                label: 'LinkedIn',
-                                onTap: () async {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('LinkedIn coming soon')),
-                                  );
+                                  await _launchExternalUrl(_facebookUrl);
                                 },
                               ),
                               _buildCompactFooterSocialButton(
                                 icon: FontAwesomeIcons.instagram,
                                 label: 'Instagram',
                                 onTap: () async {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Instagram coming soon')),
-                                  );
+                                  await _launchExternalUrl(_instagramUrl);
+                                },
+                              ),
+                              _buildCompactFooterSocialButton(
+                                icon: FontAwesomeIcons.tiktok,
+                                label: 'TikTok',
+                                onTap: () async {
+                                  await _launchExternalUrl(_tiktokUrl);
+                                },
+                              ),
+                              _buildCompactFooterSocialButton(
+                                icon: FontAwesomeIcons.youtube,
+                                label: 'YouTube',
+                                onTap: () async {
+                                  await _launchExternalUrl(_youtubeUrl);
                                 },
                               ),
                             ],
@@ -802,9 +827,7 @@ class _HomeShellState extends State<HomeShell> {
                                 topText: 'Get it on',
                                 bottomText: 'Google Play',
                                 onTap: () async {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Google Play coming soon')),
-                                  );
+                                  await _launchExternalUrl(_googlePlayUrl);
                                 },
                               ),
                             ],
@@ -1276,27 +1299,28 @@ class _HomeShellState extends State<HomeShell> {
               icon: FontAwesomeIcons.facebookF,
               label: 'Facebook',
               onTap: () async {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Facebook coming soon')),
-                );
-              },
-            ),
-            _buildCompactFooterSocialButton(
-              icon: FontAwesomeIcons.linkedinIn,
-              label: 'LinkedIn',
-              onTap: () async {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('LinkedIn coming soon')),
-                );
+                await _launchExternalUrl(_facebookUrl);
               },
             ),
             _buildCompactFooterSocialButton(
               icon: FontAwesomeIcons.instagram,
               label: 'Instagram',
               onTap: () async {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Instagram coming soon')),
-                );
+                await _launchExternalUrl(_instagramUrl);
+              },
+            ),
+            _buildCompactFooterSocialButton(
+              icon: FontAwesomeIcons.tiktok,
+              label: 'TikTok',
+              onTap: () async {
+                await _launchExternalUrl(_tiktokUrl);
+              },
+            ),
+            _buildCompactFooterSocialButton(
+              icon: FontAwesomeIcons.youtube,
+              label: 'YouTube',
+              onTap: () async {
+                await _launchExternalUrl(_youtubeUrl);
               },
             ),
           ],
@@ -1322,9 +1346,7 @@ class _HomeShellState extends State<HomeShell> {
                 topText: 'Get it on',
                 bottomText: 'Google Play',
                 onTap: () async {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Google Play coming soon')),
-                  );
+                  await _launchExternalUrl(_googlePlayUrl);
                 },
               ),
             ],

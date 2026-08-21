@@ -785,7 +785,8 @@ class HomeScreenState extends State<HomeScreen> {
                                             user?.name ??
                                             context.tr('Guest user'),
                                       ),
-                                      if (user?.verified ?? false)
+                                      if ((user?.verified ?? false) &&
+                                          user?.role.toUpperCase() == 'SELLER')
                                         const WidgetSpan(
                                           alignment:
                                               PlaceholderAlignment.middle,
@@ -1160,7 +1161,8 @@ class HomeScreenState extends State<HomeScreen> {
                                         (maxExtent + crossSpacing))
                                     .floor()
                                     .clamp(1, 8);
-                            final splitAtIndex = (5 * crossAxisCount).clamp(
+                            final int rowsBeforeAd = crossAxisCount >= 4 ? 2 : (6 / crossAxisCount).ceil();
+                            final splitAtIndex = (rowsBeforeAd * crossAxisCount).clamp(
                               0,
                               filteredItems.length,
                             );

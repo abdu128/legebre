@@ -215,7 +215,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final confirm = _confirmController.text;
     return !_submitting &&
         otp.length == 6 &&
-        password.length >= 6 &&
+        password.length >= 12 &&
         confirm == password;
   }
 
@@ -337,8 +337,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return context.tr('Use at least 6 characters');
+                    final password = value ?? '';
+                    if (password.length < 12 ||
+                        !RegExp(r'[a-z]').hasMatch(password) ||
+                        !RegExp(r'[A-Z]').hasMatch(password) ||
+                        !RegExp(r'\d').hasMatch(password) ||
+                        !RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
+                      return context.tr('Use 12+ characters with uppercase, lowercase, number, and symbol');
                     }
                     return null;
                   },
@@ -361,8 +366,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.length < 6) {
-                      return context.tr('Use at least 6 characters');
+                    final password = value ?? '';
+                    if (password.length < 12 ||
+                        !RegExp(r'[a-z]').hasMatch(password) ||
+                        !RegExp(r'[A-Z]').hasMatch(password) ||
+                        !RegExp(r'\d').hasMatch(password) ||
+                        !RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
+                      return context.tr('Use 12+ characters with uppercase, lowercase, number, and symbol');
                     }
                     if (value != _passwordController.text) {
                       return context.tr('Passwords do not match');

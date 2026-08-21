@@ -13,7 +13,7 @@ class ApiClient {
   final http.Client _client;
   final AuthStorage _storage;
 
-  static const baseUrl = 'https://legeber-backend.onrender.com';
+  static const baseUrl = 'https://api.legebere.com';
 
   Future<String?> get token async =>
       _cachedToken ??= await _storage.readToken();

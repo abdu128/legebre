@@ -135,7 +135,7 @@ class _AuthScreenState extends State<AuthScreen> {
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => RegistrationOtpScreen(
-              phone: _phoneController.text.trim(),
+              phone: normalizedPhone,
             ),
           ),
         );
@@ -144,7 +144,43 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } on ApiException catch (error) {
-      scaffold.showSnackBar(SnackBar(content: Text(error.message)));
+      final messageLower = error.message.toLowerCase();
+      final isNotVerified = messageLower.contains('not verified') ||
+          messageLower.contains('unverified') ||
+          messageLower.contains('verify your account') ||
+          messageLower.contains('verify phone') ||
+          messageLower.contains('phone not verified');
+
+      if (isNotVerified && _mode == AuthMode.login) {
+        final normalizedPhone = _normalizeEthiopiaPhone(
+          _identifierController.text.trim(),
+        );
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr('Account not verified. Sending verification code...'),
+            ),
+          ),
+        );
+        try {
+          await appState.requestRegistrationOtp(phone: normalizedPhone);
+        } catch (e) {
+          debugPrint('Failed to auto-request OTP: $e');
+        }
+        if (!mounted) return;
+        final result = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => RegistrationOtpScreen(
+              phone: normalizedPhone,
+            ),
+          ),
+        );
+        if (result == true && mounted && Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        scaffold.showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } catch (_) {
       scaffold.showSnackBar(
         SnackBar(content: Text(context.tr('Something went wrong. Try again.'))),
@@ -525,11 +561,18 @@ class _AuthScreenState extends State<AuthScreen> {
                                           ),
                                         ),
                                         validator: (value) {
-                                          if (value == null ||
-                                              value.length < 6) {
-                                            return context.tr(
-                                              'Use at least 6 characters',
-                                            );
+                                          final password = value ?? '';
+                                          if (isLogin) {
+                                            return password.isEmpty
+                                                ? context.tr('Password is required')
+                                                : null;
+                                          }
+                                          if (password.length < 12 ||
+                                              !RegExp(r'[a-z]').hasMatch(password) ||
+                                              !RegExp(r'[A-Z]').hasMatch(password) ||
+                                              !RegExp(r'\d').hasMatch(password) ||
+                                              !RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
+                                            return context.tr('Use 12+ characters with uppercase, lowercase, number, and symbol');
                                           }
                                           return null;
                                         },

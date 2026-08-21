@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+
+import '../widgets/youtube_embed_preview_stub.dart'
+  if (dart.library.html) '../widgets/youtube_embed_preview_web.dart';
 
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
-import '../widgets/youtube_embed_preview_stub.dart'
-    if (dart.library.html) '../widgets/youtube_embed_preview_web.dart';
 import 'quiz_screen.dart';
 
 class CourseContentScreen extends StatefulWidget {
@@ -129,23 +129,26 @@ class _CourseContentScreenState extends State<CourseContentScreen>
 
   String? _extractVideoId(String url) => YoutubePlayer.convertUrlToId(url);
 
-  Future<void> _openVideoUrl(String url) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(context.tr('Could not open video'))),
-      );
-      return;
+  String? _normalizeMediaUrl(String? rawUrl) {
+    if (rawUrl == null) return null;
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return null;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
     }
-
-    final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
-    if (!opened && mounted) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(context.tr('Could not open video'))),
-      );
-    }
+    return 'https://$trimmed';
   }
+
+  String? _resolveVideoPreviewUrl(Map<String, dynamic> video, String? videoId) {
+    final rawPreview =
+        (video['thumbnail'] ?? video['thumbnailUrl'] ?? video['preview'])
+            ?.toString();
+    final normalized = _normalizeMediaUrl(rawPreview);
+    if (normalized != null) return normalized;
+    if (videoId == null) return null;
+    return 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+  }
+
 
   void _toggleVideo(int index) {
     setState(() {
@@ -331,6 +334,7 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                     final isYouTube = videoId != null;
                     final canInlinePlay = isYouTube;
                     final isPlaying = _playingVideoIndex == index;
+                    final previewUrl = _resolveVideoPreviewUrl(video, videoId);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -360,38 +364,60 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                         _toggleVideo(index);
                                         return;
                                       }
-                                      if (url != null && url.isNotEmpty) {
-                                        _openVideoUrl(url);
-                                      }
                                     },
                                     child: Stack(
                                       alignment: Alignment.center,
                                       children: [
                                         AspectRatio(
                                           aspectRatio: 16 / 9,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  theme.colorScheme.primary
-                                                      .withOpacity(0.6),
-                                                  theme
-                                                      .colorScheme
-                                                      .secondaryContainer
-                                                      .withOpacity(0.6),
-                                                ],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                              ),
-                                            ),
-                                          ),
+                                          child: previewUrl != null
+                                              ? Image.network(
+                                                  previewUrl,
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder: (context, child, loading) {
+                                                    if (loading == null) return child;
+                                                    return Container(
+                                                      color: Colors.black12,
+                                                      alignment: Alignment.center,
+                                                      child: const SizedBox(
+                                                        width: 20,
+                                                        height: 20,
+                                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                                      ),
+                                                    );
+                                                  },
+                                                  errorBuilder: (context, error, stackTrace) {
+                                                    return Container(
+                                                      decoration: BoxDecoration(
+                                                        gradient: LinearGradient(
+                                                          colors: [
+                                                            theme.colorScheme.primary.withOpacity(0.6),
+                                                            theme.colorScheme.secondaryContainer.withOpacity(0.6),
+                                                          ],
+                                                          begin: Alignment.topLeft,
+                                                          end: Alignment.bottomRight,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                )
+                                              : Container(
+                                                  decoration: BoxDecoration(
+                                                    gradient: LinearGradient(
+                                                      colors: [
+                                                        theme.colorScheme.primary.withOpacity(0.6),
+                                                        theme.colorScheme.secondaryContainer.withOpacity(0.6),
+                                                      ],
+                                                      begin: Alignment.topLeft,
+                                                      end: Alignment.bottomRight,
+                                                    ),
+                                                  ),
+                                                ),
                                         ),
                                         Container(
                                           decoration: BoxDecoration(
                                             color: Colors.black45,
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
+                                            borderRadius: BorderRadius.circular(999),
                                           ),
                                           padding: const EdgeInsets.all(8),
                                           child: const Icon(
@@ -400,47 +426,18 @@ class _CourseContentScreenState extends State<CourseContentScreen>
                                             color: Colors.white,
                                           ),
                                         ),
-                                        if (!canInlinePlay)
-                                          Positioned(
-                                            left: 10,
-                                            right: 10,
-                                            bottom: 10,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 6,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.black87,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                context.tr('Tap to open video'),
-                                                textAlign: TextAlign.center,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        if (duration != null &&
-                                            duration.isNotEmpty)
+                                        if (duration != null && duration.isNotEmpty)
                                           Positioned(
                                             right: 8,
                                             bottom: 8,
                                             child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4,
+                                              ),
                                               decoration: BoxDecoration(
                                                 color: Colors.black87,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
+                                                borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 duration,

@@ -7,7 +7,7 @@ class AppUser {
     this.phone,
     this.whatsapp,
     this.profilePhoto,
-    this.verified = false,
+    this.verified = true,
     this.createdAt,
     this.updatedAt,
   });
@@ -94,7 +94,7 @@ class AppUser {
       whatsapp: readWhatsapp(),
       profilePhoto:
           json['profile_photo']?.toString() ?? json['photoUrl']?.toString(),
-      verified: json['verified'] as bool? ?? false,
+      verified: json['verified'] as bool? ?? true,
       createdAt:
           DateTime.tryParse(json['created_at'] ?? '') ??
           DateTime.tryParse(json['createdAt'] ?? ''),
