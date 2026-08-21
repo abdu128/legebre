@@ -567,12 +567,12 @@ class _AuthScreenState extends State<AuthScreen> {
                                                 ? context.tr('Password is required')
                                                 : null;
                                           }
-                                          if (password.length < 12 ||
+                                          if (password.length < 8 ||
                                               !RegExp(r'[a-z]').hasMatch(password) ||
                                               !RegExp(r'[A-Z]').hasMatch(password) ||
                                               !RegExp(r'\d').hasMatch(password) ||
                                               !RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
-                                            return context.tr('Use 12+ characters with uppercase, lowercase, number, and symbol');
+                                            return context.tr('Use 8+ characters with uppercase, lowercase, number, and symbol');
                                           }
                                           return null;
                                         },
