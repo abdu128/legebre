@@ -18,21 +18,126 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Legebere">
+  <meta name="description" content="Legebere - Modern Livestock Marketplace">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="legebre">
+  <meta name="apple-mobile-web-app-title" content="Legebere">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>legebre</title>
+  <title>Legebere - Quality Livestock Marketplace</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #F8FAF9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    #loading-splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #F4F7F5 0%, #E8EFEB 100%);
+      z-index: 99999;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    .splash-logo-container {
+      width: 88px;
+      height: 88px;
+      background: #ffffff;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(11, 107, 79, 0.12);
+      margin-bottom: 20px;
+      animation: pulse-logo 2s infinite ease-in-out;
+    }
+    .splash-logo-container img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+    }
+    .splash-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0B6B4F;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+    }
+    .splash-subtitle {
+      font-size: 13px;
+      color: #64748B;
+      font-weight: 500;
+      margin-bottom: 28px;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(11, 107, 79, 0.15);
+      border-radius: 50%;
+      border-top-color: #0B6B4F;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse-logo {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+  </style>
 </head>
 <body>
+  <div id="loading-splash">
+    <div class="splash-logo-container">
+      <img src="icons/Icon-192.png" alt="Legebere Logo">
+    </div>
+    <div class="splash-title">Legebere</div>
+    <div class="splash-subtitle">Loading quality livestock marketplace...</div>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    // Remove splash screen as soon as Flutter renders the first frame
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('loading-splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function () {
+          if (splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+          }
+        }, 400);
+      }
+    });
+
+    // Fallback: remove splash after 10 seconds max if engine takes longer
+    setTimeout(function() {
+      var splash = document.getElementById('loading-splash');
+      if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(function() {
+          if (splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+          }
+        }, 400);
+      }
+    }, 10000);
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
