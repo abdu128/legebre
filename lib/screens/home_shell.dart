@@ -430,14 +430,27 @@ class _HomeShellState extends State<HomeShell> {
       final selected = _currentIndex == index;
       return TextButton(
         onPressed: () => _handleIndexTap(index),
-        style: TextButton.styleFrom(
-          foregroundColor: selected ? Colors.white : Colors.black87,
-          backgroundColor: selected
-              ? Theme.of(context).colorScheme.primary
-              : Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (selected) return Colors.white;
+            if (states.contains(WidgetState.hovered)) return Theme.of(context).colorScheme.primary;
+            return Colors.black87;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (selected) return Theme.of(context).colorScheme.primary;
+            if (states.contains(WidgetState.hovered)) {
+              return Theme.of(context).colorScheme.primary.withValues(alpha: .08);
+            }
+            return Colors.transparent;
+          }),
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          overlayColor: WidgetStateProperty.all(
+            Theme.of(context).colorScheme.primary.withValues(alpha: .06),
           ),
         ),
         child: Text(labels[index]),
@@ -468,7 +481,21 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.black.withValues(alpha: .06),
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: compactScreen ? 16 : 28,
         vertical: compactScreen ? 10 : 14,
@@ -1099,7 +1126,7 @@ class _HomeShellState extends State<HomeShell> {
           context.tr(
             'Find quality livestock, compare prices, and transact confidently with trusted sellers.',
           ),
-          maxLines: dense ? 1 : null,
+          maxLines: dense ? 2 : null,
           overflow: dense ? TextOverflow.ellipsis : TextOverflow.visible,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: Colors.white.withValues(alpha: .9),
@@ -1325,33 +1352,31 @@ class _HomeShellState extends State<HomeShell> {
             ),
           ],
         ),
-        if (!dense) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildCompactStoreBadge(
-                icon: FontAwesomeIcons.apple,
-                topText: 'Download on the',
-                bottomText: 'App Store',
-                onTap: () async {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('App Store coming soon')),
-                  );
-                },
-              ),
-              _buildCompactStoreBadge(
-                icon: FontAwesomeIcons.googlePlay,
-                topText: 'Get it on',
-                bottomText: 'Google Play',
-                onTap: () async {
-                  await _launchExternalUrl(_googlePlayUrl);
-                },
-              ),
-            ],
-          ),
-        ],
+        SizedBox(height: dense ? 6 : 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildCompactStoreBadge(
+              icon: FontAwesomeIcons.apple,
+              topText: 'Download on the',
+              bottomText: 'App Store',
+              onTap: () async {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('App Store coming soon')),
+                );
+              },
+            ),
+            _buildCompactStoreBadge(
+              icon: FontAwesomeIcons.googlePlay,
+              topText: 'Get it on',
+              bottomText: 'Google Play',
+              onTap: () async {
+                await _launchExternalUrl(_googlePlayUrl);
+              },
+            ),
+          ],
+        ),
       ],
     );
   }

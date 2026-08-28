@@ -1161,6 +1161,9 @@ class HomeScreenState extends State<HomeScreen> {
                                         (maxExtent + crossSpacing))
                                     .floor()
                                     .clamp(1, 8);
+                            final aspectRatio = kIsWeb && width >= 980
+                                ? .65
+                                : .58;
                             final int rowsBeforeAd = crossAxisCount >= 4 ? 2 : (6 / crossAxisCount).ceil();
                             final splitAtIndex = (rowsBeforeAd * crossAxisCount).clamp(
                               0,
@@ -1178,7 +1181,7 @@ class HomeScreenState extends State<HomeScreen> {
                                       maxCrossAxisExtent: maxExtent,
                                       crossAxisSpacing: crossSpacing,
                                       mainAxisSpacing: mainSpacing,
-                                      childAspectRatio: .58,
+                                      childAspectRatio: aspectRatio,
                                     ),
                                 delegate: SliverChildBuilderDelegate((
                                   context,

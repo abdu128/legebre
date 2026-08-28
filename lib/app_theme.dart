@@ -110,5 +110,13 @@ class AppTheme {
       backgroundColor: AppColors.primaryGreen,
       foregroundColor: Colors.white,
     ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbColor: WidgetStateProperty.all(
+        AppColors.primaryGreen.withValues(alpha: .3),
+      ),
+      thickness: WidgetStateProperty.all(6),
+      radius: const Radius.circular(10),
+      thumbVisibility: WidgetStateProperty.all(false),
+    ),
   );
 }

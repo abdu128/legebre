@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -233,6 +234,457 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
         ? context.tr('Contact seller')
         : context.tr('Contact coming soon');
 
+    final viewportWidth = MediaQuery.of(context).size.width;
+    final isWideDesktop = kIsWeb && viewportWidth >= 980;
+
+    Widget buildImageCarousel({double? height, BorderRadius? borderRadius}) {
+      final radius = borderRadius ?? const BorderRadius.vertical(bottom: Radius.circular(28));
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: radius,
+            child: PageView.builder(
+              controller: _controller,
+              onPageChanged: (index) => setState(() {
+                _currentPage = index;
+              }),
+              itemCount: photos.length,
+              itemBuilder: (_, index) => Hero(
+                tag: index == 0
+                    ? 'animal-${widget.item.id}'
+                    : 'animal-${widget.item.id}-$index',
+                child: Image.network(
+                  photos[index],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: AppColors.background,
+                    child: const Icon(
+                      Icons.image_not_supported_rounded,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Bottom gradient for readability
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 80,
+            child: ClipRRect(
+              borderRadius: radius,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: .4),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Back button
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Material(
+              color: Colors.white.withValues(alpha: .9),
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => Navigator.pop(context),
+                child: const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(Icons.arrow_back_rounded, size: 22),
+                ),
+              ),
+            ),
+          ),
+          // Favorite button
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Material(
+              color: Colors.white.withValues(alpha: .9),
+              shape: const CircleBorder(),
+              elevation: 2,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _favoriteBusy ? null : _toggleFavorite,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(
+                    _isFavorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: AppColors.accentRed,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Page dots
+          if (photos.length > 1)
+            Positioned(
+              bottom: 18,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  photos.length,
+                  (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 3),
+                    width: _currentPage == index ? 20 : 8,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: _currentPage == index
+                          ? Colors.white
+                          : Colors.white54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
+    Widget buildDetailsContent() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Price + title row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatter.format(widget.item.price),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primaryGreen,
+                        letterSpacing: -.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      (widget.item.breed?.isNotEmpty ?? false)
+                          ? widget.item.breed!
+                          : widget.item.animalType,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.3,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_rounded,
+                          size: 16,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            widget.item.location ??
+                                context.tr(
+                                  'Location not provided',
+                                ),
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _StatusBadge(status: widget.item.status),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Info chips row
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _InfoChip(
+                icon: Icons.pets_rounded,
+                label: widget.item.animalType,
+              ),
+              if (widget.item.breed != null)
+                _InfoChip(
+                  icon: Icons.category_rounded,
+                  label: widget.item.breed!,
+                ),
+              if (widget.item.weight != null)
+                _InfoChip(
+                  icon: Icons.monitor_weight_rounded,
+                  label:
+                      '${widget.item.weight!.toStringAsFixed(0)} kg',
+                ),
+              if (widget.item.age != null)
+                _InfoChip(
+                  icon: Icons.schedule_rounded,
+                  label: widget.item.age!,
+                ),
+            ],
+          ),
+
+          // Description
+          if ((widget.item.description?.isNotEmpty ?? false)) ...[
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.shade200,
+                ),
+              ),
+              child: Text(
+                widget.item.description!,
+                style: TextStyle(
+                  height: 1.6,
+                  color: Colors.grey.shade700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Seller card
+          _SectionCard(
+            title: context.tr('Seller profile'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            AppColors.primaryGreen,
+                            AppColors.secondaryGreen,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Center(
+                        child: Text(
+                          sellerName.isNotEmpty
+                              ? sellerName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                sellerName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              if (widget.item.sellerVerified) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  size: 16,
+                                  color: AppColors.primaryGreen,
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            contactHint,
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_loadingContact)
+                      const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: sellerPhone == null
+                            ? null
+                            : () => _handleContactAction(
+                                channel: 'CALL',
+                                missingLabel: 'phone',
+                                value: sellerPhone,
+                              ),
+                        icon: const Icon(Icons.call_rounded),
+                        label: Text(context.tr('Call')),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: sellerWhatsapp == null
+                            ? null
+                            : () => _handleContactAction(
+                                channel: 'WHATSAPP',
+                                missingLabel: 'WhatsApp',
+                                value: sellerWhatsapp,
+                              ),
+                        icon: const Icon(Icons.chat_rounded),
+                        label: Text(context.tr('WhatsApp')),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                          ),
+                          side: const BorderSide(
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (isOwner) ...[
+            const SizedBox(height: 16),
+            _SectionCard(
+              title: context.tr('Seller actions'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    value: _isSold,
+                    onChanged: _statusBusy ? null : _updateStatus,
+                    title: Text(context.tr('Mark as sold')),
+                    subtitle: Text(
+                      context.tr(
+                        'Buyers will see the listing as unavailable.',
+                      ),
+                    ),
+                  ),
+                  if (_statusBusy)
+                    const LinearProgressIndicator(minHeight: 2),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // --- Wide desktop: side-by-side layout ---
+    if (isWideDesktop) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left: Image carousel
+                    Expanded(
+                      flex: 5,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height - 100,
+                          child: buildImageCarousel(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 28),
+                    // Right: Details
+                    Expanded(
+                      flex: 4,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 40),
+                        child: buildDetailsContent(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // --- Mobile / narrow: stacked layout ---
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -241,414 +693,14 @@ class _ListingDetailScreenState extends State<ListingDetailScreen> {
             constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
             child: Column(
               children: [
-                // --- Image carousel with rounded bottom ---
                 SizedBox(
                   height: 340,
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          bottom: Radius.circular(28),
-                        ),
-                        child: PageView.builder(
-                          controller: _controller,
-                          onPageChanged: (index) => setState(() {
-                            _currentPage = index;
-                          }),
-                          itemCount: photos.length,
-                          itemBuilder: (_, index) => Hero(
-                            tag: index == 0
-                                ? 'animal-${widget.item.id}'
-                                : 'animal-${widget.item.id}-$index',
-                            child: Image.network(
-                              photos[index],
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: AppColors.background,
-                                child: const Icon(
-                                  Icons.image_not_supported_rounded,
-                                  size: 48,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Bottom gradient for readability
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        height: 80,
-                        child: ClipRRect(
-                          borderRadius: const BorderRadius.vertical(
-                            bottom: Radius.circular(28),
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.transparent,
-                                  Colors.black.withValues(alpha: .4),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Back button
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Material(
-                          color: Colors.white.withValues(alpha: .9),
-                          shape: const CircleBorder(),
-                          elevation: 2,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: () => Navigator.pop(context),
-                            child: const Padding(
-                              padding: EdgeInsets.all(10),
-                              child: Icon(Icons.arrow_back_rounded, size: 22),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Favorite button
-                      Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Material(
-                          color: Colors.white.withValues(alpha: .9),
-                          shape: const CircleBorder(),
-                          elevation: 2,
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: _favoriteBusy ? null : _toggleFavorite,
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Icon(
-                                _isFavorite
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                color: AppColors.accentRed,
-                                size: 22,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Page dots
-                      if (photos.length > 1)
-                        Positioned(
-                          bottom: 18,
-                          left: 0,
-                          right: 0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              photos.length,
-                              (index) => AnimatedContainer(
-                                duration: const Duration(milliseconds: 250),
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 3),
-                                width: _currentPage == index ? 20 : 8,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: _currentPage == index
-                                      ? Colors.white
-                                      : Colors.white54,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  child: buildImageCarousel(),
                 ),
-
-                // --- Content area ---
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Price + title row
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    formatter.format(widget.item.price),
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.primaryGreen,
-                                      letterSpacing: -.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    (widget.item.breed?.isNotEmpty ?? false)
-                                        ? widget.item.breed!
-                                        : widget.item.animalType,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -.3,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_on_rounded,
-                                        size: 16,
-                                        color: Colors.grey.shade500,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          widget.item.location ??
-                                              context.tr(
-                                                'Location not provided',
-                                              ),
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            _StatusBadge(status: widget.item.status),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Info chips row
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            _InfoChip(
-                              icon: Icons.pets_rounded,
-                              label: widget.item.animalType,
-                            ),
-                            if (widget.item.breed != null)
-                              _InfoChip(
-                                icon: Icons.category_rounded,
-                                label: widget.item.breed!,
-                              ),
-                            if (widget.item.weight != null)
-                              _InfoChip(
-                                icon: Icons.monitor_weight_rounded,
-                                label:
-                                    '${widget.item.weight!.toStringAsFixed(0)} kg',
-                              ),
-                            if (widget.item.age != null)
-                              _InfoChip(
-                                icon: Icons.schedule_rounded,
-                                label: widget.item.age!,
-                              ),
-                          ],
-                        ),
-
-                        // Description
-                        if ((widget.item.description?.isNotEmpty ?? false)) ...[
-                          const SizedBox(height: 20),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                              ),
-                            ),
-                            child: Text(
-                              widget.item.description!,
-                              style: TextStyle(
-                                height: 1.6,
-                                color: Colors.grey.shade700,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 24),
-
-                        // Seller card
-                        _SectionCard(
-                          title: context.tr('Seller profile'),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          AppColors.primaryGreen,
-                                          AppColors.secondaryGreen,
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        sellerName.isNotEmpty
-                                            ? sellerName[0].toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              sellerName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            if (widget.item.sellerVerified) ...[
-                                              const SizedBox(width: 6),
-                                              const Icon(
-                                                Icons.verified_rounded,
-                                                size: 16,
-                                                color: AppColors.primaryGreen,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          contactHint,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade500,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (_loadingContact)
-                                    const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: sellerPhone == null
-                                          ? null
-                                          : () => _handleContactAction(
-                                              channel: 'CALL',
-                                              missingLabel: 'phone',
-                                              value: sellerPhone,
-                                            ),
-                                      icon: const Icon(Icons.call_rounded),
-                                      label: Text(context.tr('Call')),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: sellerWhatsapp == null
-                                          ? null
-                                          : () => _handleContactAction(
-                                              channel: 'WHATSAPP',
-                                              missingLabel: 'WhatsApp',
-                                              value: sellerWhatsapp,
-                                            ),
-                                      icon: const Icon(Icons.chat_rounded),
-                                      label: Text(context.tr('WhatsApp')),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 14,
-                                        ),
-                                        side: const BorderSide(
-                                          color: AppColors.primaryGreen,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        if (isOwner) ...[
-                          const SizedBox(height: 16),
-                          _SectionCard(
-                            title: context.tr('Seller actions'),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SwitchListTile(
-                                  value: _isSold,
-                                  onChanged: _statusBusy ? null : _updateStatus,
-                                  title: Text(context.tr('Mark as sold')),
-                                  subtitle: Text(
-                                    context.tr(
-                                      'Buyers will see the listing as unavailable.',
-                                    ),
-                                  ),
-                                ),
-                                if (_statusBusy)
-                                  const LinearProgressIndicator(minHeight: 2),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                    child: buildDetailsContent(),
                   ),
                 ),
               ],
