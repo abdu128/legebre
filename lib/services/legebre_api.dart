@@ -367,6 +367,35 @@ class LegebreApi {
     return Animal.fromJson(data);
   }
 
+  /// Buyer-search AI chat. Returns reply text + optional listing cards.
+  Future<({String reply, List<Animal> listings})> aiChat({
+    required String message,
+    List<Map<String, String>> history = const [],
+  }) async {
+    final response = await _client.post(
+      '/api/ai/chat',
+      body: {
+        'message': message,
+        if (history.isNotEmpty) 'history': history,
+      },
+      authorized: true,
+    );
+
+    final map = response is Map<String, dynamic>
+        ? response
+        : const <String, dynamic>{};
+    final reply = (map['reply'] ?? '').toString();
+    final listingMaps = _extractList(
+      map,
+      preferredKeys: const ['listings'],
+    );
+
+    return (
+      reply: reply,
+      listings: listingMaps.map(Animal.fromJson).toList(),
+    );
+  }
+
   Future<Map<String, dynamic>> getAnimalContact(int id) async {
     final response = await _client.get('/contact/animals/$id');
     if (response is Map<String, dynamic>) return response;

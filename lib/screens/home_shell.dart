@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import 'add_listing_screen.dart';
+import 'chat_screen.dart';
 import 'e_learning_screen.dart';
 import 'favorites_screen.dart';
 import 'feed_supply_screen.dart';
@@ -1488,7 +1489,21 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   void _handleMenuSelection(String value) {
-    if (value == 'feed') {
+    if (value == 'ai_chat') {
+      final appState = context.read<AppState>();
+      if (!appState.isAuthenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('Please log in to continue'))),
+        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
+        return;
+      }
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const ChatScreen()));
+    } else if (value == 'feed') {
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => const FeedSupplyScreen()));

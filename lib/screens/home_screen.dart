@@ -663,6 +663,11 @@ class HomeScreenState extends State<HomeScreen> {
       //   labelKey: 'Vet Care',
       // ),
       _QuickMenuAction(
+        value: 'ai_chat',
+        icon: Icons.smart_toy_rounded,
+        labelKey: 'AI Search',
+      ),
+      _QuickMenuAction(
         value: 'feed',
         icon: Icons.grass,
         labelKey: 'Feed Supply',

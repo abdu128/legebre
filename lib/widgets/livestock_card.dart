@@ -33,7 +33,7 @@ class _LivestockCardState extends State<LivestockCard> {
       curve: Curves.easeOutCubic,
       transformAlignment: Alignment.center,
       transform: kIsWeb && _isHovered
-          ? (Matrix4.identity()..scaleByDouble(1.025))
+          ? (Matrix4.identity()..scale(1.025, 1.025, 1.0))
           : Matrix4.identity(),
       decoration: BoxDecoration(
         color: Colors.white,
