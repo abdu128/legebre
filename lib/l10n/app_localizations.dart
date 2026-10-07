@@ -130,6 +130,11 @@ class AppLocalizations {
       'Cattle near Hawassa': 'በሀዋሳ አካባቢ በሬ',
       'Ox under 50,000 ETB': 'ከ 50,000 ብር ያነሰ በሬ',
       'Ask about livestock...': 'ስለ እንስሳ ጠይቅ...',
+      'Retry': 'እንደገና ሞክር',
+      'Search is temporarily unavailable. Please try again.':
+          'ፍለጋ ለጊዜው አይገኝም። እባክዎ እንደገና ይሞክሩ።',
+      'No listings matched. Try another price or region.':
+          'ምንም ዝርዝር አልተገኘም። ሌላ ዋጋ ወይም ቦታ ይሞክሩ።',
       'E-Learning': 'የኢ ትምህርት',
       'Finance Info': 'የፋይናንስ መረጃ',
       'Logout': 'ውጣ',
@@ -465,6 +470,11 @@ class AppLocalizations {
       'Cattle near Hawassa': 'Hawaasaa naannoo sangaa',
       'Ox under 50,000 ETB': 'Sangaa 50,000 ETB gadii',
       'Ask about livestock...': 'Waa\'ee horii gaafadhu...',
+      'Retry': 'Irra deebi\'ii yaali',
+      'Search is temporarily unavailable. Please try again.':
+          'Barbaachuun yeroof hin argamu. Maaloo irra deebi\'ii yaali.',
+      'No listings matched. Try another price or region.':
+          'Hin argamne. Gatii ykn naannoo biraa yaali.',
       'E-Learning': 'Barnoota elektirooniksii',
       'Finance Info': 'Odeeffannoo maallaqaa',
       'Logout': 'Ba\'i',
@@ -805,6 +815,11 @@ class AppLocalizations {
       'Cattle near Hawassa': 'Lo\' lo\'a Hawassa u dhow',
       'Ox under 50,000 ETB': 'Dibi ka hooseeya 50,000 ETB',
       'Ask about livestock...': 'Wax ka weydii xoolaha...',
+      'Retry': 'Isku day mar kale',
+      'Search is temporarily unavailable. Please try again.':
+          'Raadintu hadda ma heli karo. Fadlan isku day mar kale.',
+      'No listings matched. Try another price or region.':
+          'Waxba lama helin. Isku day qiimo ama gobol kale.',
       'E-Learning': 'Barashada onlaynka',
       'Finance Info': 'Macluumaadka maaliyadda',
       'Logout': 'Ka bax',

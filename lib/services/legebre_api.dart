@@ -372,11 +372,13 @@ class LegebreApi {
     required String message,
     List<Map<String, String>> history = const [],
   }) async {
+    final cappedHistory =
+        history.length > 6 ? history.sublist(history.length - 6) : history;
     final response = await _client.post(
       '/api/ai/chat',
       body: {
-        'message': message,
-        if (history.isNotEmpty) 'history': history,
+        'message': message.length > 500 ? message.substring(0, 500) : message,
+        if (cappedHistory.isNotEmpty) 'history': cappedHistory,
       },
       authorized: true,
     );
@@ -384,7 +386,7 @@ class LegebreApi {
     final map = response is Map<String, dynamic>
         ? response
         : const <String, dynamic>{};
-    final reply = (map['reply'] ?? '').toString();
+    final reply = (map['reply'] ?? map['message'] ?? '').toString();
     final listingMaps = _extractList(
       map,
       preferredKeys: const ['listings'],
@@ -392,8 +394,35 @@ class LegebreApi {
 
     return (
       reply: reply,
-      listings: listingMaps.map(Animal.fromJson).toList(),
+      listings: listingMaps.map(_animalFromAiListing).toList(),
     );
+  }
+
+  Animal _animalFromAiListing(Map<String, dynamic> json) {
+    final imageUrl = json['image_url'] ?? json['imageUrl'];
+    final photos = <String>[];
+    if (imageUrl is String && imageUrl.trim().isNotEmpty) {
+      photos.add(imageUrl.trim());
+    } else if (json['photos'] is List) {
+      photos.addAll(
+        (json['photos'] as List)
+            .map((e) => e?.toString().trim() ?? '')
+            .where((e) => e.isNotEmpty),
+      );
+    }
+
+    return Animal.fromJson({
+      ...json,
+      'id': json['id'],
+      'animal_type':
+          json['category'] ?? json['animal_type'] ?? json['animalType'],
+      'breed': json['title'] ?? json['breed'],
+      'location': json['region'] ?? json['location'],
+      'price': json['price'],
+      'photos': photos,
+      'status': json['status'] ?? 'AVAILABLE',
+      'seller_id': json['seller_id'] ?? json['sellerId'] ?? 0,
+    });
   }
 
   Future<Map<String, dynamic>> getAnimalContact(int id) async {

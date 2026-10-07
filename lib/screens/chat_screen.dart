@@ -58,11 +58,15 @@ class _ChatMessage {
     required this.role,
     required this.text,
     this.listings = const [],
+    this.isError = false,
+    this.retryText,
   });
 
   final String role; // user | assistant
   final String text;
   final List<Animal> listings;
+  final bool isError;
+  final String? retryText;
 }
 
 class _ChatScreenState extends State<ChatScreen> {
@@ -110,16 +114,19 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.any((message) => message.role == 'user');
 
   List<Map<String, String>> _historyPayload() {
-    return _messages
+    final turns = _messages
         .where((m) => m.role == 'user' || m.role == 'assistant')
         .skip(1)
+        .where((m) => !m.isError)
         .map(
           (m) => {
-            'role': m.role == 'assistant' ? 'model' : 'user',
+            'role': m.role == 'assistant' ? 'assistant' : 'user',
             'content': m.text,
           },
         )
         .toList();
+    if (turns.length <= 6) return turns;
+    return turns.sublist(turns.length - 6);
   }
 
   Future<void> _send(String raw) async {
@@ -162,20 +169,23 @@ class _ChatScreenState extends State<ChatScreen> {
             role: 'assistant',
             text: result.reply.isNotEmpty
                 ? result.reply
-                : 'I could not find matching listings.',
+                : context.tr('No listings matched. Try another price or region.'),
             listings: result.listings,
           ),
         );
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+      final friendly = e.message.isNotEmpty
+          ? e.message
+          : context.tr('Search is temporarily unavailable. Please try again.');
       setState(() {
         _messages.add(
           _ChatMessage(
             role: 'assistant',
-            text: e.message.isNotEmpty
-                ? e.message
-                : 'Something went wrong. Please try again.',
+            text: friendly,
+            isError: true,
+            retryText: text,
           ),
         );
       });
@@ -185,7 +195,11 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add(
           _ChatMessage(
             role: 'assistant',
-            text: 'Something went wrong. Please try again.',
+            text: context.tr(
+              'Search is temporarily unavailable. Please try again.',
+            ),
+            isError: true,
+            retryText: text,
           ),
         );
       });
@@ -248,7 +262,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(
               children: [
                 const SizedBox(width: 8),
-                Icon(
+                const Icon(
                   Icons.smart_toy_rounded,
                   color: AppColors.primaryGreen,
                   size: 22,
@@ -296,6 +310,9 @@ class _ChatScreenState extends State<ChatScreen> {
               return _MessageBubble(
                 message: message,
                 onListingTap: _openListing,
+                onRetry: message.retryText == null
+                    ? null
+                    : () => _send(message.retryText!),
               );
             },
           ),
@@ -414,10 +431,12 @@ class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
     required this.onListingTap,
+    this.onRetry,
   });
 
   final _ChatMessage message;
   final ValueChanged<Animal> onListingTap;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -456,26 +475,50 @@ class _MessageBubble extends StatelessWidget {
                 child: Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Text(
-                    message.text,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: isUser ? Colors.white : AppColors.deepBrown,
-                      height: 1.35,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message.text,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isUser ? Colors.white : AppColors.deepBrown,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (message.isError && onRetry != null) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: onRetry,
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primaryGreen,
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: Text(context.tr('Retry')),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
             ),
           ),
           if (message.listings.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...message.listings.map(
-              (item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _ListingResultCard(
-                  item: item,
-                  onTap: () => onListingTap(item),
-                ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 148,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: message.listings.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final item = message.listings[index];
+                  return _ListingResultCard(
+                    item: item,
+                    onTap: () => onListingTap(item),
+                  );
+                },
               ),
             ),
           ],
@@ -502,6 +545,8 @@ class _ListingResultCard extends StatelessWidget {
       decimalDigits: 0,
       symbol: 'ETB ',
     ).format(item.price);
+    final title =
+        item.breed?.isNotEmpty == true ? item.breed! : item.animalType;
 
     return Material(
       color: Colors.white,
@@ -511,54 +556,47 @@ class _ListingResultCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
+        child: SizedBox(
+          width: 168,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
                 child: Image.network(
                   item.coverPhoto,
-                  width: 64,
-                  height: 64,
+                  width: 168,
+                  height: 88,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
-                    width: 64,
-                    height: 64,
+                    width: 168,
+                    height: 88,
                     color: AppColors.background,
                     child: const Icon(Icons.image_not_supported_rounded),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.breed?.isNotEmpty == true
-                          ? item.breed!
-                          : item.animalType,
+                      title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
                         color: AppColors.deepBrown,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.animalType,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.primaryGreen,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     Text(
                       price,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
+                        color: AppColors.primaryGreen,
                       ),
                     ),
                     if (item.location != null &&
@@ -569,12 +607,12 @@ class _ListingResultCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.grey.shade600,
+                          fontSize: 11,
                         ),
                       ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
             ],
           ),
         ),
