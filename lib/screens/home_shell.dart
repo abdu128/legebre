@@ -1541,16 +1541,6 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _openAiChat() async {
-    final appState = context.read<AppState>();
-    if (!appState.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('Please log in to continue'))),
-      );
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
-      return;
-    }
     if (!mounted) return;
     await ChatScreen.openSheet(context);
   }

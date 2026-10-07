@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../models/animal.dart';
 import '../services/api_exception.dart';
 import '../state/app_state.dart';
+import 'auth_screen.dart';
 import 'listing_detail_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -69,22 +70,33 @@ class _ChatScreenState extends State<ChatScreen> {
   final _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [];
   bool _sending = false;
+  bool _welcomeReady = false;
 
   static const _quickReplies = [
-    'Find an ox',
-    'Find a goat',
+    'Find sheep in Addis',
+    'Goats under 15,000 ETB',
+    'Cattle near Hawassa',
+    'Ox under 50,000 ETB',
   ];
 
   @override
   void initState() {
     super.initState();
-    _messages.add(
-      _ChatMessage(
+    _messages.add(_ChatMessage(role: 'assistant', text: ''));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_welcomeReady && _messages.isNotEmpty) {
+      _welcomeReady = true;
+      _messages[0] = _ChatMessage(
         role: 'assistant',
-        text:
-            'Hi! I can help you find livestock on Legebere. Try “Find an ox” or tell me a budget and region.',
-      ),
-    );
+        text: context.tr(
+          'Hi! I can help you find livestock on Legebere. Try “Find sheep in Addis”, “Goats under 15,000 ETB”, or tell me what you need.',
+        ),
+      );
+    }
   }
 
   @override
@@ -93,6 +105,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  bool get _hasUserMessages =>
+      _messages.any((message) => message.role == 'user');
 
   List<Map<String, String>> _historyPayload() {
     return _messages
@@ -115,6 +130,9 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!appState.isAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('Please log in to continue'))),
+      );
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
       );
       return;
     }
@@ -282,7 +300,7 @@ class _ChatScreenState extends State<ChatScreen> {
             },
           ),
         ),
-        if (!_sending && _messages.length <= 2)
+        if (!_sending && !_hasUserMessages)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Align(
@@ -297,7 +315,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     side: BorderSide(
                       color: AppColors.primaryGreen.withValues(alpha: .25),
                     ),
-                    onPressed: () => _send(label),
+                    onPressed: () => _send(context.tr(label)),
                   );
                 }).toList(),
               ),
