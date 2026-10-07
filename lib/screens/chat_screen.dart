@@ -10,7 +10,43 @@ import '../state/app_state.dart';
 import 'listing_detail_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  const ChatScreen({super.key, this.asSheet = false});
+
+  /// Compact bottom-sheet style instead of a full page.
+  final bool asSheet;
+
+  static Future<void> openSheet(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: .35),
+      builder: (sheetContext) {
+        final height = MediaQuery.sizeOf(sheetContext).height;
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: height * 0.72,
+                maxWidth: 560,
+              ),
+              child: const Material(
+                color: AppColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                clipBehavior: Clip.antiAlias,
+                child: ChatScreen(asSheet: true),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -59,7 +95,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   List<Map<String, String>> _historyPayload() {
-    // Skip the welcome bubble; send recent turns only.
     return _messages
         .where((m) => m.role == 'user' || m.role == 'assistant')
         .skip(1)
@@ -93,7 +128,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final history = _historyPayload();
-      // Exclude the message we just added from history (API gets it as `message`)
       final prior = history.length > 1
           ? history.sublist(0, history.length - 1)
           : <Map<String, String>>[];
@@ -157,132 +191,202 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _openListing(Animal item) async {
+    final api = context.read<AppState>().api;
+    final nav = Navigator.of(context, rootNavigator: true);
+    final asSheet = widget.asSheet;
+
+    if (asSheet && Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+
     try {
-      final animal = await context.read<AppState>().api.getAnimal(item.id);
-      if (!mounted) return;
-      Navigator.of(context).push(
+      final animal = await api.getAnimal(item.id);
+      await nav.push(
         MaterialPageRoute(builder: (_) => ListingDetailScreen(item: animal)),
       );
     } catch (_) {
-      if (!mounted) return;
-      // Fall back to the card payload if refresh fails
-      Navigator.of(context).push(
+      await nav.push(
         MaterialPageRoute(builder: (_) => ListingDetailScreen(item: item)),
       );
     }
   }
 
+  Widget _buildHeader() {
+    if (widget.asSheet) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 4, 0),
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.smart_toy_rounded,
+                  color: AppColors.primaryGreen,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    context.tr('Ask Legebere'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.deepBrown,
+                        ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.tr('Close'),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.black.withValues(alpha: .06)),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildChatBody() {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            itemCount: _messages.length + (_sending ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (_sending && index == _messages.length) {
+                return const _TypingIndicator();
+              }
+              final message = _messages[index];
+              return _MessageBubble(
+                message: message,
+                onListingTap: _openListing,
+              );
+            },
+          ),
+        ),
+        if (!_sending && _messages.length <= 2)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _quickReplies.map((label) {
+                  return ActionChip(
+                    label: Text(context.tr(label)),
+                    backgroundColor: Colors.white,
+                    side: BorderSide(
+                      color: AppColors.primaryGreen.withValues(alpha: .25),
+                    ),
+                    onPressed: () => _send(label),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        Material(
+          color: Colors.white,
+          elevation: widget.asSheet ? 0 : 8,
+          shadowColor: Colors.black.withValues(alpha: .06),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              12,
+              10,
+              12,
+              widget.asSheet ? 12 : 10,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    enabled: !_sending,
+                    textInputAction: TextInputAction.send,
+                    minLines: 1,
+                    maxLines: 3,
+                    onSubmitted: _send,
+                    decoration: InputDecoration(
+                      hintText: context.tr('Ask about livestock...'),
+                      filled: true,
+                      fillColor: AppColors.background,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _sending ? null : () => _send(_controller.text),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.primaryGreen.withValues(alpha: .4),
+                  ),
+                  icon: _sending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.send_rounded),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.asSheet) {
+      return SafeArea(
+        top: false,
+        child: _buildChatBody(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(context.tr('AI Search')),
+        title: Text(context.tr('Ask Legebere')),
         backgroundColor: Colors.white,
         foregroundColor: AppColors.deepBrown,
         elevation: 0.5,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              itemCount: _messages.length + (_sending ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (_sending && index == _messages.length) {
-                  return const _TypingIndicator();
-                }
-                final message = _messages[index];
-                return _MessageBubble(
-                  message: message,
-                  onListingTap: _openListing,
-                );
-              },
-            ),
-          ),
-          if (!_sending && _messages.length <= 2)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _quickReplies.map((label) {
-                    return ActionChip(
-                      label: Text(context.tr(label)),
-                      backgroundColor: Colors.white,
-                      side: BorderSide(
-                        color: AppColors.primaryGreen.withValues(alpha: .25),
-                      ),
-                      onPressed: () => _send(label),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          SafeArea(
-            top: false,
-            child: Material(
-              color: Colors.white,
-              elevation: 8,
-              shadowColor: Colors.black.withValues(alpha: .06),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        enabled: !_sending,
-                        textInputAction: TextInputAction.send,
-                        minLines: 1,
-                        maxLines: 4,
-                        onSubmitted: _send,
-                        decoration: InputDecoration(
-                          hintText: context.tr('Ask about livestock...'),
-                          filled: true,
-                          fillColor: AppColors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      onPressed: _sending
-                          ? null
-                          : () => _send(_controller.text),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primaryGreen,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppColors.primaryGreen.withValues(alpha: .4),
-                      ),
-                      icon: _sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+      body: SafeArea(
+        top: false,
+        child: _buildChatBody(),
       ),
     );
   }
@@ -397,12 +501,12 @@ class _ListingResultCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.network(
                   item.coverPhoto,
-                  width: 72,
-                  height: 72,
+                  width: 64,
+                  height: 64,
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => Container(
-                    width: 72,
-                    height: 72,
+                    width: 64,
+                    height: 64,
                     color: AppColors.background,
                     child: const Icon(Icons.image_not_supported_rounded),
                   ),

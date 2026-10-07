@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../state/app_state.dart';
 import 'add_listing_screen.dart';
@@ -219,6 +220,11 @@ class _HomeShellState extends State<HomeShell> {
         return;
       }
 
+      if (value == 'ai_chat') {
+        _openAiChat();
+        return;
+      }
+
       if (value == 'sell') {
         await _handleFabPressed();
         return;
@@ -313,6 +319,36 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 );
               },
+            ),
+          ),
+        if (_currentIndex == 0)
+          PopupMenuItem<String>(
+            value: 'ai_chat',
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withValues(alpha: .12)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.smart_toy_rounded,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.tr('Ask Legebere'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         if (_currentIndex == 0)
@@ -472,6 +508,11 @@ class _HomeShellState extends State<HomeShell> {
 
     final actionButtons = <Widget>[
       ...navButtons,
+      OutlinedButton.icon(
+        onPressed: _openAiChat,
+        icon: const Icon(Icons.smart_toy_rounded, size: 18),
+        label: Text(context.tr('Ask Legebere')),
+      ),
       if (_currentIndex == 0)
         FilledButton.icon(
           onPressed: _handleFabPressed,
@@ -1488,21 +1529,35 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Widget _buildAskLegebereFab() {
+    return FloatingActionButton(
+      heroTag: 'ask_legebere_fab',
+      onPressed: _openAiChat,
+      tooltip: context.tr('Ask Legebere'),
+      backgroundColor: AppColors.primaryGreen,
+      foregroundColor: Colors.white,
+      child: const Icon(Icons.smart_toy_rounded),
+    );
+  }
+
+  Future<void> _openAiChat() async {
+    final appState = context.read<AppState>();
+    if (!appState.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('Please log in to continue'))),
+      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
+      return;
+    }
+    if (!mounted) return;
+    await ChatScreen.openSheet(context);
+  }
+
   void _handleMenuSelection(String value) {
     if (value == 'ai_chat') {
-      final appState = context.read<AppState>();
-      if (!appState.isAuthenticated) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Please log in to continue'))),
-        );
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
-        return;
-      }
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const ChatScreen()));
+      _openAiChat();
     } else if (value == 'feed') {
       Navigator.of(
         context,
@@ -1536,6 +1591,8 @@ class _HomeShellState extends State<HomeShell> {
     if (kIsWeb) {
       final compactWeb = MediaQuery.of(context).size.width < 980;
       return Scaffold(
+        floatingActionButton: _buildAskLegebereFab(),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: Column(
           children: [
             _buildWebTopBar(),
@@ -1587,13 +1644,25 @@ class _HomeShellState extends State<HomeShell> {
           child: pages[_currentIndex],
         ),
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _buildAskLegebereFab(),
+          if (_currentIndex == 0) ...[
+            const SizedBox(height: 12),
+            FloatingActionButton.extended(
+              heroTag: 'sell_livestock_fab',
               onPressed: _handleFabPressed,
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
               label: Text(context.tr('Sell livestock')),
-            )
-          : null,
+            ),
+          ],
+        ],
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,

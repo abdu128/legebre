@@ -665,7 +665,7 @@ class HomeScreenState extends State<HomeScreen> {
       _QuickMenuAction(
         value: 'ai_chat',
         icon: Icons.smart_toy_rounded,
-        labelKey: 'AI Search',
+        labelKey: 'Ask Legebere',
       ),
       _QuickMenuAction(
         value: 'feed',
